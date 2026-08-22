@@ -1,0 +1,9 @@
+{
+  "streets": 1886,
+  "blocks": 35863,
+  "with_delay": 1512,
+  "passenger_delay_min": 42886738,
+  "bus_delay_min": 8339543,
+  "riders_20d": 30443345,
+  "centreline_miles": 1491.2
+}

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Where Bus Delay Lands in New York | Transit Ranked</title>
-  <meta name="description" content="Every bus corridor in New York City ranked by the delay its riders absorb, not the delay its buses absorb. 303 corridors from 20 days of GTFS-Realtime, weighted by onboard ridership.">
-  <meta name="keywords" content="NYC bus delay, bus corridors, passenger delay, GTFS-Realtime, MTA buses, bus priority, transit equity, bus lanes, New York transit data">
+  <meta name="description" content="Every street and every corridor in the New York bus network ranked by the delay its riders absorb, not the delay its buses absorb. 1,886 streets and 303 corridors from 20 days of GTFS-Realtime, weighted by onboard ridership.">
+  <meta name="keywords" content="NYC bus delay, bus corridors, bus streets, passenger delay, passenger-minutes lost, GTFS-Realtime, MTA buses, bus priority, transit equity, bus lanes, New York transit data">
   <meta name="author" content="Transit Ranked">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#F26724">
@@ -15,24 +15,25 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://transitranked.com/">
   <meta property="og:title" content="Where Bus Delay Lands in New York">
-  <meta property="og:description" content="303 bus corridors ranked by passenger-minutes lost, not bus-minutes. Interactive map with ridership, delay and time-of-day detail for every corridor.">
+  <meta property="og:description" content="1,886 streets and 303 corridors ranked by passenger-minutes lost, not bus-minutes. Interactive map with ridership, delay and time-of-day detail for every one.">
   <meta property="og:site_name" content="Transit Ranked">
 
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://transitranked.com/">
   <meta property="twitter:title" content="Where Bus Delay Lands in New York">
-  <meta property="twitter:description" content="303 bus corridors ranked by passenger-minutes lost, not bus-minutes.">
+  <meta property="twitter:description" content="1,886 bus streets and 303 corridors ranked by passenger-minutes lost, not bus-minutes.">
 
-  <link rel="icon" type="image/x-icon" href="/TransitRanked.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/TransitRanked.png">
+  <!-- Inline, so the tab icon works with no asset to ship. To use a real logo,
+       put TransitRanked.png in public/ and point this href at it. -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%276%27%20fill%3D%27%23F26724%27%2F%3E%3Crect%20x%3D%277%27%20y%3D%277%27%20width%3D%277%27%20height%3D%274%27%20rx%3D%272%27%20fill%3D%27%23fff%27%20opacity%3D%27.5%27%2F%3E%3Crect%20x%3D%277%27%20y%3D%2714%27%20width%3D%2712%27%20height%3D%274%27%20rx%3D%272%27%20fill%3D%27%23fff%27%20opacity%3D%27.75%27%2F%3E%3Crect%20x%3D%277%27%20y%3D%2721%27%20width%3D%2718%27%20height%3D%274%27%20rx%3D%272%27%20fill%3D%27%23fff%27%2F%3E%3C%2Fsvg%3E">
   <link rel="apple-touch-icon" sizes="180x180" href="/TransitRanked.png">
 
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "Dataset",
-    "name": "New York City bus corridors ranked by passenger delay",
-    "description": "303 chained bus corridors in New York City, each with passenger-minutes lost, bus-minutes lost, riders carried, bus trips and a weekday time-of-day profile. Derived from 20 days of MTA GTFS-Realtime trip updates weighted by stop-level automated passenger counts.",
+    "name": "New York City bus streets and corridors ranked by passenger delay",
+    "description": "Two layers over the New York bus network: 1,886 streets covering all 1,491 centreline miles that carry bus service, and the 303 chained corridors drawn from them. Each carries passenger-minutes lost, bus-minutes lost, riders carried, bus trips and a weekday time-of-day profile. Derived from 20 days of MTA GTFS-Realtime trip updates weighted by stop-level automated passenger counts.",
     "url": "https://transitranked.com/",
     "temporalCoverage": "2026-06-26/2026-07-15",
     "spatialCoverage": { "@type": "Place", "name": "New York City" },
@@ -55,8 +56,12 @@
     .corridor-tip .maplibregl-popup-content {
       padding: 8px 11px; border-radius: 7px;
       box-shadow: 0 4px 16px rgba(0,0,0,.14);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: #1c1c1e;
     }
     .corridor-tip .maplibregl-popup-tip { display: none; }
+    .corridor-tip .tipname { font-size: 12.5px; font-weight: 600; }
+    .corridor-tip .tipsub { font-size: 11px; color: #6d6e71; margin-top: 2px; }
   </style>
 </head>
 <body>

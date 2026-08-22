@@ -1,79 +1,97 @@
-# transitranked.com — bus corridor map
+# transitranked.com — where bus delay lands
 
-Staging copy of everything that goes into `D:\Transit_Ranked\station-ranker`.
-Built here first because the site folder sits outside this repo.
+The site Vercel builds. Vite + React + MapLibre, no router and no state library.
 
 ## What it is
 
-All **303 chained bus corridors** in New York City, not just the published top 50,
-on an interactive MapLibre map with a ranked list beside it.
+Two layers over the New York bus network, and the difference between them is the
+point of the site.
 
-Colour and rank are driven by whichever metric is selected, so switching from
-**bus delay** to **passenger delay** repaints the map into a different picture.
-That switch is the argument the site makes, so it is the first control.
+| Layer | Count | Miles | Passenger-minutes | What it answers |
+|---|---|---|---|---|
+| **Roads** | 1,886 streets | 1,491 | 42,886,738 | Where delay actually lands |
+| **Corridors** | 303 chained | 191 | 19,928,019 | Where you would build something |
 
-Per corridor: riders carried, bus trips, delay under both metrics, minutes lost
-per bus, average load, share of citywide corridor delay, the routes that use it,
-a weekday AM/midday/PM/evening/overnight split, and an hour-by-hour profile.
+Corridors are a selection carved out of the roads: 46% of the citywide delay on 13%
+of the network. Roads are the whole thing, so no delay is hidden behind the chaining
+step. The view toggle is the first control in the panel.
+
+Colour and rank follow whichever metric is selected, so switching from **bus delay**
+to **passenger delay** repaints the map into a different picture. That switch is the
+argument the site makes, so it sits directly under the view toggle.
+
+Per street or corridor: riders carried, bus trips, delay under both metrics, minutes
+lost per bus, average load, share of delay, the routes that use it, a weekday
+AM/midday/PM/evening/overnight split, and an hour-by-hour profile.
 
 ## Files
 
 | Path | What |
 |---|---|
-| `src/CorridorsApp.jsx` | The whole page. No router, no state library. |
+| `src/CorridorsApp.jsx` | The whole page. |
 | `src/main.jsx` | Entry point. Renders `CorridorsApp`. |
-| `index.html` | Title, meta, JSON-LD, and the popup CSS MapLibre needs. |
-| `public/data/corridors.geojson` | 303 corridors, geometry + attributes, 0.8 MB. |
+| `index.html` | Title, meta, JSON-LD, inline favicon, popup CSS. |
+| `public/data/roads.geojson` | 1,886 streets, geometry + attributes, 4.1 MB. |
+| `public/data/roads_meta.json` | Headline totals for the road layer. |
+| `public/data/corridors.geojson` | 303 corridors, 0.8 MB. |
 | `public/data/corridors_meta.json` | Headline totals and the field dictionary. |
-| `public/static-map.html` | The standalone SVG map, no build step, as a fallback. |
+| `public/transitranked_corridors.html` | Both layers as ONE file, no build, no network. |
+| `public/static-map.html` | The older top-50 SVG map, kept as a fallback. |
 
-Regenerate the data with `python Equity_Analysis/29_export_web.py`.
-
-## Installing over the site
-
-Copy `src/`, `index.html` and `public/` into `D:\Transit_Ranked\station-ranker`,
-then:
+## Running it
 
 ```
-cd D:\Transit_Ranked\station-ranker
-npm run dev      # check it locally first
+cd web
+npm install
+npm run dev      # look at it first
 npm run build
 ```
 
-**Nothing is deleted.** The subway station ranker stays at
-`src/StationRankerApp.jsx`. To put it back, change two lines in `src/main.jsx`:
+Vercel builds from `web/` with `npm run build` and serves `web/dist`.
 
-```js
-import StationRankerApp from './StationRankerApp'
-// ...
-<StationRankerApp />
+## Where the data comes from
+
+The two geojson files are generated in the `gtfs-service-audit` repo and copied here:
+
+```
+python Equity_Analysis/29_export_web.py       # corridors.geojson
+python Equity_Analysis/31_export_roads.py     # roads.geojson
+python Equity_Analysis/30_standalone_site.py  # the single-file version, run last
 ```
 
-## Units, and one trap worth knowing
+Twenty days of MTA GTFS-Realtime trip updates, 2026-06-26 to 2026-07-15, matched to
+LION street centrelines and weighted by stop-level automated passenger counts.
 
-`riders_carried` and `bus_traversals` in the source parquet are summed **across
-blocks**, so a rider who stays on for five blocks is counted five times. Those
-sums are correct as the numerator of a ratio (riders per bus is a true mean load)
-but they are not a passenger count.
+## The standalone file
 
-The export therefore publishes:
+`/transitranked_corridors.html` is 4.5 MB and makes **zero** network requests:
+geometry inlined as SVG paths, attributes as a JS array, pan and zoom by rewriting
+the viewBox. It opens from a USB stick, a file share, or an email attachment and
+behaves identically. Useful for anyone who cannot reach the site.
 
-- `riders_20d` — riders past an **average point** on the corridor over 20 days
-- `bus_trips_20d` — bus trips past an average point
-- `rider_block_crossings` — the raw sum, kept and clearly named
+## Units, and three traps worth knowing
 
-Sutphin Boulevard reads 224k riders over 20 days, roughly 11,200 a day, rather
-than the 7.6M the raw block sum would suggest.
+**Riders are averaged along the length, not summed.** `riders_carried` and
+`bus_traversals` in the source data are summed across blocks, so a rider who stays on
+for five blocks is counted five times. Those sums are correct as the numerator of a
+ratio (riders per bus is a true mean load) but they are not a passenger count. The
+export publishes `riders_20d`, riders past an **average point**, and keeps the raw
+sum as `rider_block_crossings` on the corridor layer. Sutphin Boulevard reads 224k
+riders over 20 days, roughly 11,200 a day, rather than the 7.6M the raw block sum
+would suggest.
 
-Two denominators also exist for "share of delay" and they are easy to confuse:
+**Centreline miles come from distinct SegmentIDs.** Length is a property of the
+street, not of the direction rows. Summing segment length over segment-directions
+double counts every two-way street and gives 2,247 miles against the true 1,491.
 
-- **corridor delay** — 19.9M passenger-minutes, what falls on chained corridors
-- **citywide delay** — 42.9M, generated across every roadway block
+**Two denominators exist for "share of delay".** The corridor layer quotes share of
+the 19.9M that falls on chained corridors; the road layer quotes share of the 42.9M
+generated citywide. Each panel says which. The top 50 hold **52.8% of corridor
+delay** and **24.5% of citywide delay** — both are in `corridors_meta.json`.
 
-The top 50 hold **52.8% of corridor delay** and **24.5% of citywide delay**. The
-site quotes the corridor figure and says so; both are in `corridors_meta.json`.
+## Notes
 
-## Not done here
-
-The site has **not** been deployed. Run the build and deploy yourself once you
-have looked at it.
+- The favicon is an inline SVG so nothing 404s. To use a real logo, put
+  `TransitRanked.png` in `public/` and point the `<link rel="icon">` at it.
+- Basemap tiles come from OpenStreetMap and are the only external request the built
+  site makes.
