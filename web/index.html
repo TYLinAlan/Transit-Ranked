@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Where Bus Delay Lands in New York | Transit Ranked</title>
+  <meta name="description" content="Every bus corridor in New York City ranked by the delay its riders absorb, not the delay its buses absorb. 303 corridors from 20 days of GTFS-Realtime, weighted by onboard ridership.">
+  <meta name="keywords" content="NYC bus delay, bus corridors, passenger delay, GTFS-Realtime, MTA buses, bus priority, transit equity, bus lanes, New York transit data">
+  <meta name="author" content="Transit Ranked">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#F26724">
+  <link rel="canonical" href="https://transitranked.com/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://transitranked.com/">
+  <meta property="og:title" content="Where Bus Delay Lands in New York">
+  <meta property="og:description" content="303 bus corridors ranked by passenger-minutes lost, not bus-minutes. Interactive map with ridership, delay and time-of-day detail for every corridor.">
+  <meta property="og:site_name" content="Transit Ranked">
+
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://transitranked.com/">
+  <meta property="twitter:title" content="Where Bus Delay Lands in New York">
+  <meta property="twitter:description" content="303 bus corridors ranked by passenger-minutes lost, not bus-minutes.">
+
+  <link rel="icon" type="image/x-icon" href="/TransitRanked.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/TransitRanked.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/TransitRanked.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "New York City bus corridors ranked by passenger delay",
+    "description": "303 chained bus corridors in New York City, each with passenger-minutes lost, bus-minutes lost, riders carried, bus trips and a weekday time-of-day profile. Derived from 20 days of MTA GTFS-Realtime trip updates weighted by stop-level automated passenger counts.",
+    "url": "https://transitranked.com/",
+    "temporalCoverage": "2026-06-26/2026-07-15",
+    "spatialCoverage": { "@type": "Place", "name": "New York City" },
+    "creator": { "@type": "Organization", "name": "Transit Ranked" },
+    "isAccessibleForFree": true,
+    "variableMeasured": [
+      "passenger-minutes lost",
+      "bus-minutes lost",
+      "riders carried",
+      "bus trips",
+      "minutes lost per bus"
+    ]
+  }
+  </script>
+
+  <style>
+    html, body, #root { height: 100%; margin: 0; }
+    body { background: #fff; -webkit-font-smoothing: antialiased; }
+    /* map hover tooltip, styled here because MapLibre owns the popup element */
+    .corridor-tip .maplibregl-popup-content {
+      padding: 8px 11px; border-radius: 7px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.14);
+    }
+    .corridor-tip .maplibregl-popup-tip { display: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

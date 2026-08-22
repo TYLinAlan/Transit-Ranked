@@ -1,0 +1,71 @@
+{
+  "generated_from": "MTA GTFS-Realtime, 2026-06-26 to 2026-07-15 (20 days)",
+  "corridors": 303,
+  "totals": {
+    "passenger_delay_min": 19928019,
+    "bus_delay_min": 3239443,
+    "riders_20d": 13068187,
+    "bus_trips_20d": 1666525,
+    "centreline_miles": 191.4,
+    "distinct_streets": 236
+  },
+  "citywide_passenger_delay_min": 42886738,
+  "top50": {
+    "passenger_delay_min": 10516166,
+    "centreline_miles": 62.3,
+    "share_of_corridor_delay_pct": 52.8,
+    "share_of_citywide_delay_pct": 24.5
+  },
+  "all_corridors_share_of_citywide_pct": 46.5,
+  "boroughs": [
+    {
+      "borough": "Bronx",
+      "corridors": 67,
+      "passenger_delay_min": 2944464,
+      "riders": 2548573
+    },
+    {
+      "borough": "Brooklyn",
+      "corridors": 73,
+      "passenger_delay_min": 5155508,
+      "riders": 2996621
+    },
+    {
+      "borough": "Brooklyn / Queens",
+      "corridors": 1,
+      "passenger_delay_min": 18102,
+      "riders": 2746
+    },
+    {
+      "borough": "Manhattan",
+      "corridors": 55,
+      "passenger_delay_min": 3007186,
+      "riders": 2090572
+    },
+    {
+      "borough": "Queens",
+      "corridors": 89,
+      "passenger_delay_min": 8011457,
+      "riders": 4329309
+    },
+    {
+      "borough": "Staten Island",
+      "corridors": 18,
+      "passenger_delay_min": 791302,
+      "riders": 1100366
+    }
+  ],
+  "fields": {
+    "pax_delay_min": "Passenger-minutes lost. Bus delay multiplied by how many people were aboard.",
+    "veh_delay_min": "Bus-minutes lost. The conventional measure, with no passenger weighting.",
+    "riders_20d": "Passengers past an average point on the corridor over the 20 days. Block-level counts averaged along the corridor, not summed, so a rider staying on is counted once.",
+    "bus_trips_20d": "Bus trips past an average point over the 20 days.",
+    "rider_block_crossings": "Raw sum of riders over every block. Correct as the numerator of a ratio, but not a passenger count.",
+    "min_per_bus": "Minutes an average bus loses crossing the whole corridor.",
+    "riders_per_delayed_bus_min": "People on board per bus-minute lost. How costly each lost minute is.",
+    "sec_per_rider": "Seconds lost by a rider aboard for the whole corridor. Identical to what the bus loses, because they are on it.",
+    "share_of_city_delay_pct": "Share of all corridor passenger delay in the city.",
+    "peak_period": "Weekday period generating the most passenger delay.",
+    "hourly_pax": "Weekday passenger-minutes by hour, 0 to 23."
+  }
+}
