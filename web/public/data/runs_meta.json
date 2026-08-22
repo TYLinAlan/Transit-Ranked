@@ -1,0 +1,12 @@
+{
+  "runs": 3628,
+  "blocks": 35863,
+  "with_delay": 2680,
+  "passenger_delay_min": 42886742,
+  "bus_delay_min": 8339538,
+  "rider_block_crossings": 966965305,
+  "median_riders_per_run_20d": 9759,
+  "centreline_miles": 1491.2,
+  "median_miles": 0.15,
+  "named_with_two_cross_streets": 2064
+}

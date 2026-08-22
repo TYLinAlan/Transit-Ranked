@@ -1,28 +1,28 @@
 {
   "generated_from": "MTA GTFS-Realtime, 2026-06-26 to 2026-07-15 (20 days)",
-  "corridors": 298,
+  "corridors": 300,
   "totals": {
-    "passenger_delay_min": 19967259,
-    "bus_delay_min": 3231091,
-    "riders_20d": 12735048,
-    "bus_trips_20d": 1637515,
-    "centreline_miles": 193.6,
-    "distinct_streets": 233
+    "passenger_delay_min": 19994074,
+    "bus_delay_min": 3238189,
+    "riders_20d": 12836498,
+    "bus_trips_20d": 1664362,
+    "centreline_miles": 194.0,
+    "distinct_streets": 235
   },
   "citywide_passenger_delay_min": 42886738,
   "top50": {
     "passenger_delay_min": 10513687,
     "centreline_miles": 62.6,
-    "share_of_corridor_delay_pct": 52.7,
+    "share_of_corridor_delay_pct": 52.6,
     "share_of_citywide_delay_pct": 24.5
   },
   "all_corridors_share_of_citywide_pct": 46.6,
   "boroughs": [
     {
       "borough": "Bronx",
-      "corridors": 58,
-      "passenger_delay_min": 2778504,
-      "riders": 2267409
+      "corridors": 59,
+      "passenger_delay_min": 2799294,
+      "riders": 2328943
     },
     {
       "borough": "Brooklyn",
@@ -38,9 +38,9 @@
     },
     {
       "borough": "Manhattan",
-      "corridors": 56,
-      "passenger_delay_min": 3073945,
-      "riders": 2154837
+      "corridors": 57,
+      "passenger_delay_min": 3079970,
+      "riders": 2194753
     },
     {
       "borough": "Queens",

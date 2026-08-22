@@ -9,8 +9,8 @@ point of the site.
 
 | Layer | Count | Miles | Passenger-minutes | What it answers |
 |---|---|---|---|---|
-| **Roads** | 1,886 streets | 1,491 | 42,886,738 | Where delay actually lands |
-| **Corridors** | 298 chained | 194 | 19,967,259 | Where you would build something |
+| **Runs** | 3,628 stretches | 1,491 | 42,886,742 | Where delay actually lands |
+| **Corridors** | 300 chained | 194 | 19,994,074 | Where you would build something |
 
 Corridors are a selection carved out of the roads: 47% of the citywide delay on 13%
 of the network. Roads are the whole thing, so no delay is hidden behind the chaining
@@ -25,6 +25,16 @@ produced no corridor at all.
 Corridors is the default view at the top 50. The header carries every figure for
 whatever is on screen -- riders, passenger-minutes, bus-minutes, bus trips, count and
 centreline miles -- each with its per-day rate underneath, and it tracks both layers.
+
+A **run** is a continuous stretch of one street: consecutive blocks that share a LION
+node, carry the same name and keep going in the same direction. It is the corridor
+chaining with the delay threshold removed, so corridors are a strict subset of runs.
+
+This replaced an earlier layer that dissolved blocks by street and borough. That did
+not require the blocks to touch, so Broadway in Manhattan was one row averaging 17.6
+miles when it is 18 separate stretches on the ground, and Flatbush Avenue in Brooklyn
+was one row of 11.64 miles when it is 5. Runs have no length floor, so every one of
+the 42.9M passenger-minutes still lands somewhere.
 
 Colour and rank follow whichever metric is selected, so switching from **bus delay**
 to **passenger delay** repaints the map into a different picture. That switch is the
@@ -41,9 +51,9 @@ AM/midday/PM/evening/overnight split, and an hour-by-hour profile.
 | `src/CorridorsApp.jsx` | The whole page. |
 | `src/main.jsx` | Entry point. Renders `CorridorsApp`. |
 | `index.html` | Title, meta, JSON-LD, inline favicon, popup CSS. |
-| `public/data/roads.geojson` | 1,886 streets, geometry + attributes, 4.1 MB. |
-| `public/data/roads_meta.json` | Headline totals for the road layer. |
-| `public/data/corridors.geojson` | 298 corridors, 0.8 MB. |
+| `public/data/runs.geojson` | 3,628 street runs, geometry + attributes, 5.4 MB. |
+| `public/data/runs_meta.json` | Headline totals for the run layer. |
+| `public/data/corridors.geojson` | 300 corridors, 0.8 MB. |
 | `public/data/corridors_meta.json` | Headline totals and the field dictionary. |
 | `public/transitranked_corridors.html` | Both layers as ONE file, no build, no network. |
 | `public/static-map.html` | The older top-50 SVG map, kept as a fallback. |
@@ -65,7 +75,7 @@ The two geojson files are generated in the `gtfs-service-audit` repo and copied 
 
 ```
 python Equity_Analysis/29_export_web.py       # corridors.geojson
-python Equity_Analysis/31_export_roads.py     # roads.geojson
+python Equity_Analysis/32_export_runs.py      # runs.geojson
 python Equity_Analysis/30_standalone_site.py  # the single-file version, run last
 ```
 

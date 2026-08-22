@@ -5,23 +5,25 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 /*  New York bus corridors and streets, ranked by passenger-minutes lost.
  *
  *  TWO LAYERS:
- *    CORRIDORS  298 chained runs of contiguous qualifying block, 194 miles.
+ *    CORRIDORS  300 chained runs of contiguous qualifying block, 194 miles.
  *               20.0M passenger-minutes, 47% of the citywide total on 13% of the
  *               network. The default view, because it is the unit a planner acts on.
- *    ROADS      1,886 streets, the whole bus network, 1,491 centreline miles.
- *               42.9M passenger-minutes: everything generated anywhere.
+ *    RUNS       3,628 continuous stretches of bus-carrying street, the whole
+ *               network, 1,491 centreline miles, all 42.9M passenger-minutes.
+ *               A run ends where the street does, so unlike a dissolve by name
+ *               every row is somewhere you could walk end to end.
  *
  *  Colour encodes the ACTIVE METRIC, never rank, so switching metric repaints the map
  *  into a different picture. That switch is the argument, so it sits near the top.
  *
- *  Data comes from Equity_Analysis/29_export_web.py and 31_export_roads.py.
+ *  Data comes from Equity_Analysis/29_export_web.py and 32_export_runs.py.
  */
 
 const SRC = {
   corridors: { data: '/data/corridors.geojson', meta: '/data/corridors_meta.json',
                idKey: 'corridor_id' },
-  roads: { data: '/data/roads.geojson', meta: '/data/roads_meta.json',
-           idKey: 'road_id' },
+  runs: { data: '/data/runs.geojson', meta: '/data/runs_meta.json',
+          idKey: 'run_id' },
 }
 
 const DAYS = 20              // the study window, for turning totals into daily rates
@@ -115,7 +117,7 @@ export default function CorridorsApp() {
   const boxRef = useRef(null)
   const popRef = useRef(null)
 
-  const [sets, setSets] = useState({ roads: null, corridors: null })
+  const [sets, setSets] = useState({ runs: null, corridors: null })
   const [error, setError] = useState(null)
   const [ready, setReady] = useState(false)
 
@@ -141,13 +143,13 @@ export default function CorridorsApp() {
       return [k, gj.features]
     })
 
-    Promise.all([grab('corridors'), grab('roads')])
+    Promise.all([grab('corridors'), grab('runs')])
       .then((res) => {
         if (!alive) return
         const s = {}
         res.forEach(([k, f]) => { s[k] = f })
         setSets(s)
-        setBoros(new Set([...s.roads, ...s.corridors]
+        setBoros(new Set([...s.runs, ...s.corridors]
           .map((f) => f.properties.borough)))
       })
       .catch((e) => { if (alive) setError(e.message) })
@@ -155,7 +157,7 @@ export default function CorridorsApp() {
   }, [])
 
   const allBoros = useMemo(() => {
-    const all = [...(sets.roads || []), ...(sets.corridors || [])]
+    const all = [...(sets.runs || []), ...(sets.corridors || [])]
     return [...new Set(all.map((f) => f.properties.borough))].sort()
   }, [sets])
 
@@ -335,14 +337,14 @@ export default function CorridorsApp() {
         <h1 style={{ margin: 0, fontSize: 20 }}>Could not load the data</h1>
         <p style={{ color: MUTED }}>{error}</p>
         <p style={{ color: MUTED, fontSize: 13 }}>
-          Expecting corridors.geojson and roads.geojson under <code>public/data/</code>.
+          Expecting corridors.geojson and runs.geojson under <code>public/data/</code>.
         </p>
       </div>
     )
   }
 
   const nAll = features ? features.length : 0
-  const noun = view === 'corridors' ? 'corridors' : 'streets'
+  const noun = view === 'corridors' ? 'corridors' : 'runs'
   const scope = !nAll ? 'loading'
     : totals.n >= nAll ? `all ${fmt(nAll)} ${noun}`
     : `top ${fmt(totals.n)} of ${fmt(nAll)} ${noun}`
@@ -350,18 +352,19 @@ export default function CorridorsApp() {
   return (
     <div style={S.page}>
       <header style={S.header}>
-        <div style={{ minWidth: 300 }}>
+        <div style={{ flex: '0 1 auto', minWidth: 290 }}>
           <div style={S.eyebrow}>TRANSIT RANKED</div>
           <h1 style={S.h1}>Where bus delay lands in New York</h1>
           <p style={S.sub}>
             Bus corridors and streets ranked by passenger-minutes lost rather than
             bus-minutes. Twenty days of GTFS-Realtime, weighted by onboard ridership.
           </p>
-          <Calendar />
         </div>
 
+        <Calendar />
+
         {/* every figure for what is on screen, and it tracks both layers alike */}
-        <div>
+        <div style={{ flex: '0 0 auto' }}>
           <div style={S.scope}>{scope}</div>
           <div style={S.hstats}>
             <Stat v={compact(totals.riders)} l="riders carried"
@@ -386,14 +389,14 @@ export default function CorridorsApp() {
               <ViewBtn on={view === 'corridors'} onClick={() => switchView('corridors')}
                        n={sets.corridors && sets.corridors.length} lab="corridors"
                        sub="contiguous runs of bad street" />
-              <ViewBtn on={view === 'roads'} onClick={() => switchView('roads')}
-                       n={sets.roads && sets.roads.length} lab="streets"
-                       sub="all streets with bus service" />
+              <ViewBtn on={view === 'runs'} onClick={() => switchView('runs')}
+                       n={sets.runs && sets.runs.length} lab="runs"
+                       sub="every stretch of bus street" />
             </div>
             <p style={S.blurb}>
               {view === 'corridors'
-                ? '298 corridors chained from contiguous qualifying blocks, 194 miles. They carry 20.0M passenger-minutes, 47% of the citywide total, on 13% of the network. The qualifying threshold is a percentile taken within each borough.'
-                : '1,886 streets with bus service, 1,491 centreline miles. Between them they hold all 42.9M passenger-minutes generated citywide, with no chaining step in between.'}
+                ? '300 corridors chained from contiguous qualifying blocks, 194 miles. They carry 20.0M passenger-minutes, 47% of the citywide total, on 13% of the network. The qualifying threshold is a percentile taken within each borough.'
+                : '3,628 continuous stretches of bus-carrying street, 1,491 centreline miles. Between them they hold all 42.9M passenger-minutes generated citywide. A run ends where the street does, so every row is somewhere you could walk end to end.'}
             </p>
           </section>
 
@@ -527,7 +530,8 @@ function Calendar() {
   return (
     <div style={S.calWrap}>
       <div style={S.calHead}>
-        26 JUN &ndash; 15 JUL 2026 &middot; 14 WEEKDAYS, 6 WEEKEND DAYS
+        STUDY WINDOW &middot; 26 JUN &ndash; 15 JUL 2026 &middot;
+        14 WEEKDAYS, 6 WEEKEND DAYS
       </div>
       <div style={S.calRow}>
         {CALENDAR.map(([mon, day, dow], i) => {
@@ -659,7 +663,7 @@ function Detail({ p, metric, view, total, onClose }) {
 
       <div style={S.dBlock}>
         <div style={S.label}>
-          {routes.length} ROUTES USE THIS {view === 'corridors' ? 'CORRIDOR' : 'STREET'}
+          {routes.length} ROUTES USE THIS {view === 'corridors' ? 'CORRIDOR' : 'RUN'}
         </div>
         <div style={S.rtWrap}>
           {routes.map((r) => <span key={r} style={S.rt}>{r}</span>)}
@@ -690,24 +694,25 @@ const S = {
   page: { fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif', color: INK,
           background: PAPER, height: '100vh', display: 'flex',
           flexDirection: 'column', overflow: 'hidden' },
-  header: { padding: '14px 24px 12px', borderBottom: `1px solid ${LINE}`,
-            display: 'flex', gap: 28, alignItems: 'flex-start',
+  header: { padding: '13px 22px 11px', borderBottom: `1px solid ${LINE}`,
+            display: 'flex', gap: 22, alignItems: 'flex-start',
             justifyContent: 'space-between', flexWrap: 'wrap' },
   eyebrow: { fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', color: ORANGE,
              marginBottom: 5 },
   h1: { margin: 0, fontSize: 23, fontWeight: 700, letterSpacing: '-.01em' },
-  sub: { margin: '6px 0 0', color: MUTED, fontSize: 12.5, maxWidth: 560,
-         lineHeight: 1.5 },
+  sub: { margin: '6px 0 0', color: MUTED, fontSize: 12.5, maxWidth: 470,
+         lineHeight: 1.45 },
 
-  calWrap: { marginTop: 10 },
-  calHead: { fontSize: 9.5, fontWeight: 700, letterSpacing: '.09em', color: FAINT,
-             marginBottom: 4 },
+  calWrap: { paddingTop: 3, flex: '1 1 auto', display: 'flex',
+             flexDirection: 'column', alignItems: 'center' },
+  calHead: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
+             marginBottom: 7 },
   calRow: { display: 'flex', gap: 2 },
-  calCell: { width: 21, height: 25, border: `1px solid ${LINE}`, borderRadius: 3,
-             fontSize: 10, display: 'flex', flexDirection: 'column',
+  calCell: { width: 26, height: 34, border: `1px solid ${LINE}`, borderRadius: 4,
+             fontSize: 13, display: 'flex', flexDirection: 'column',
              alignItems: 'center', justifyContent: 'center', lineHeight: 1.05,
              fontVariantNumeric: 'tabular-nums' },
-  calDow: { fontSize: 7.5, color: FAINT, letterSpacing: '.04em' },
+  calDow: { fontSize: 8.5, color: FAINT, letterSpacing: '.05em', marginBottom: 1 },
 
   scope: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
            textTransform: 'uppercase', marginBottom: 7, textAlign: 'right' },
