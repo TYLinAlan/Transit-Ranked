@@ -10,8 +10,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
  *    ROADS      1,886 streets, the whole bus network, 1,491 centreline miles.
  *               42.9M passenger-minutes: every minute generated anywhere.
  *               This is where delay actually falls.
- *    CORRIDORS  303 chained runs of contiguous bad street, 191 miles.
- *               19.9M passenger-minutes, 46% of the total on 13% of the network.
+ *    CORRIDORS  298 chained runs of contiguous bad street, 194 miles.
+ *               20.0M passenger-minutes, 47% of the total on 13% of the network.
  *               This is where you would build something.
  *
  *  Colour always encodes the ACTIVE METRIC, never rank, so switching metric repaints
@@ -308,7 +308,7 @@ export default function CorridorsApp() {
   const switchView = (v) => {
     setView(v)
     setSel(null)
-    setTopN(v === 'roads' ? 400 : 303)
+    setTopN(v === 'roads' ? 400 : 298)
   }
 
   if (error) {
@@ -370,7 +370,7 @@ export default function CorridorsApp() {
             <p style={S.blurb}>
               {view === 'roads'
                 ? 'All 1,886 streets carrying bus service, over 1,491 centreline miles. Between them they hold every one of the 42.9M passenger-minutes generated citywide.'
-                : 'The 303 chained corridors, on 191 miles. They hold 19.9M passenger-minutes, 46% of the citywide total, on 13% of the network.'}
+                : 'The 298 chained corridors, on 194 miles. They hold 20.0M passenger-minutes, 47% of the citywide total, on 13% of the network.'}
             </p>
           </section>
 

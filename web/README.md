@@ -10,11 +10,17 @@ point of the site.
 | Layer | Count | Miles | Passenger-minutes | What it answers |
 |---|---|---|---|---|
 | **Roads** | 1,886 streets | 1,491 | 42,886,738 | Where delay actually lands |
-| **Corridors** | 303 chained | 191 | 19,928,019 | Where you would build something |
+| **Corridors** | 298 chained | 194 | 19,967,259 | Where you would build something |
 
-Corridors are a selection carved out of the roads: 46% of the citywide delay on 13%
+Corridors are a selection carved out of the roads: 47% of the citywide delay on 13%
 of the network. Roads are the whole thing, so no delay is hidden behind the chaining
 step. The view toggle is the first control in the panel.
+
+The threshold that picks corridors is a percentile taken **within each borough**, not
+citywide. A citywide cut is a citywide competition and Staten Island loses it: its
+median block runs 131 passenger-min per 100 ft against 294-332 elsewhere, so only 13%
+of its network qualified, and Richmond Avenue, one of DOT's own 50 priority corridors,
+produced no corridor at all.
 
 Colour and rank follow whichever metric is selected, so switching from **bus delay**
 to **passenger delay** repaints the map into a different picture. That switch is the
@@ -33,7 +39,7 @@ AM/midday/PM/evening/overnight split, and an hour-by-hour profile.
 | `index.html` | Title, meta, JSON-LD, inline favicon, popup CSS. |
 | `public/data/roads.geojson` | 1,886 streets, geometry + attributes, 4.1 MB. |
 | `public/data/roads_meta.json` | Headline totals for the road layer. |
-| `public/data/corridors.geojson` | 303 corridors, 0.8 MB. |
+| `public/data/corridors.geojson` | 298 corridors, 0.8 MB. |
 | `public/data/corridors_meta.json` | Headline totals and the field dictionary. |
 | `public/transitranked_corridors.html` | Both layers as ONE file, no build, no network. |
 | `public/static-map.html` | The older top-50 SVG map, kept as a fallback. |
@@ -85,8 +91,8 @@ street, not of the direction rows. Summing segment length over segment-direction
 double counts every two-way street and gives 2,247 miles against the true 1,491.
 
 **Two denominators exist for "share of delay".** The corridor layer quotes share of
-the 19.9M that falls on chained corridors; the road layer quotes share of the 42.9M
-generated citywide. Each panel says which. The top 50 hold **52.8% of corridor
+the 20.0M that falls on chained corridors; the road layer quotes share of the 42.9M
+generated citywide. Each panel says which. The top 50 hold **52.7% of corridor
 delay** and **24.5% of citywide delay** — both are in `corridors_meta.json`.
 
 ## Notes
