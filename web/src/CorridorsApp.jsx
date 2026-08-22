@@ -25,6 +25,18 @@ const SRC = {
 }
 
 const DAYS = 20              // the study window, for turning totals into daily rates
+/* The window as a strip of cells. Built here rather than from Date arithmetic at
+ * render time so the page has no timezone behaviour: a viewer in Auckland and one in
+ * Los Angeles must see the same twenty days. Independence Day falls inside it and is
+ * marked, because a holiday Saturday is not an ordinary Saturday for bus ridership. */
+const CALENDAR = [
+  ['Jun', 26, 'Fri'], ['Jun', 27, 'Sat'], ['Jun', 28, 'Sun'], ['Jun', 29, 'Mon'],
+  ['Jun', 30, 'Tue'], ['Jul', 1, 'Wed'], ['Jul', 2, 'Thu'], ['Jul', 3, 'Fri'],
+  ['Jul', 4, 'Sat'], ['Jul', 5, 'Sun'], ['Jul', 6, 'Mon'], ['Jul', 7, 'Tue'],
+  ['Jul', 8, 'Wed'], ['Jul', 9, 'Thu'], ['Jul', 10, 'Fri'], ['Jul', 11, 'Sat'],
+  ['Jul', 12, 'Sun'], ['Jul', 13, 'Mon'], ['Jul', 14, 'Tue'], ['Jul', 15, 'Wed'],
+]
+const HOLIDAY = 'Jul 4'
 
 const INK = '#1c1c1e'
 const MUTED = '#6d6e71'
@@ -33,6 +45,9 @@ const LINE = '#e3e1dd'
 const ORANGE = '#F26724'
 const BLUE = '#476AA3'
 const PAPER = '#ffffff'
+const CARTO_CREDIT =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' +
+  ' contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
 /* Single-hue ramps, magnitude by lightness. Every step is solved to a fixed contrast
  * ratio against the basemap land colour (1.95 / 2.72 / 3.80 / 5.30 / 7.40) with an
@@ -172,21 +187,25 @@ export default function CorridorsApp() {
     if (mapRef.current || !boxRef.current) return
     const map = new maplibregl.Map({
       container: boxRef.current,
+      /* CARTO Positron, split into ground and labels so the labels can sit ABOVE
+       * the data. Positron is already a near-grey cartography, so unlike raw OSM it
+       * needs no saturation or contrast correction to stop it fighting the lines. */
       style: {
         version: 8,
         sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '&copy; OpenStreetMap contributors',
+          ground: {
+            type: 'raster', tileSize: 256,
+            tiles: ['a', 'b', 'c', 'd'].map((h) =>
+              `https://${h}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png`),
+            attribution: CARTO_CREDIT,
+          },
+          places: {
+            type: 'raster', tileSize: 256,
+            tiles: ['a', 'b', 'c', 'd'].map((h) =>
+              `https://${h}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png`),
           },
         },
-        layers: [{
-          id: 'osm', type: 'raster', source: 'osm',
-          paint: { 'raster-saturation': -0.9, 'raster-contrast': -0.15,
-                   'raster-brightness-min': 0.24 },
-        }],
+        layers: [{ id: 'ground', type: 'raster', source: 'ground' }],
       },
       center: [-73.94, 40.70],
       zoom: 10.1,
@@ -212,6 +231,8 @@ export default function CorridorsApp() {
           paint: { 'line-color': ORANGE, 'line-width': 2 } })
         map.addLayer({ id: 'lines-hit', type: 'line', source: 'lines',
           paint: { 'line-color': '#000', 'line-opacity': 0, 'line-width': 16 } })
+        map.addLayer({ id: 'places', type: 'raster', source: 'places',
+          paint: { 'raster-opacity': 0.85 } })
 
         map.on('mousemove', 'lines-hit', (e) => {
           const f = e.features && e.features[0]
@@ -336,6 +357,7 @@ export default function CorridorsApp() {
             Bus corridors and streets ranked by passenger-minutes lost rather than
             bus-minutes. Twenty days of GTFS-Realtime, weighted by onboard ridership.
           </p>
+          <Calendar />
         </div>
 
         {/* every figure for what is on screen, and it tracks both layers alike */}
@@ -501,6 +523,38 @@ const ViewBtn = ({ on, onClick, n, lab, sub }) => (
     <span style={S.viewSub}>{sub}</span>
   </button>
 )
+function Calendar() {
+  return (
+    <div style={S.calWrap}>
+      <div style={S.calHead}>
+        26 JUN &ndash; 15 JUL 2026 &middot; 14 WEEKDAYS, 6 WEEKEND DAYS
+      </div>
+      <div style={S.calRow}>
+        {CALENDAR.map(([mon, day, dow], i) => {
+          const weekend = dow === 'Sat' || dow === 'Sun'
+          const holiday = `${mon} ${day}` === HOLIDAY
+          const newMonth = i > 0 && CALENDAR[i - 1][0] !== mon
+          return (
+            <div key={`${mon}${day}`}
+                 title={`${dow} ${day} ${mon} 2026${holiday ? ' — Independence Day' : ''}`}
+                 style={{
+                   ...S.calCell,
+                   marginLeft: newMonth ? 6 : 0,
+                   background: holiday ? '#F2672418' : weekend ? '#f1efec' : PAPER,
+                   borderColor: holiday ? ORANGE : LINE,
+                   color: holiday ? ORANGE : weekend ? FAINT : INK,
+                   fontWeight: holiday ? 700 : 500,
+                 }}>
+              <span style={S.calDow}>{dow[0]}</span>
+              {day}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const Stat = ({ v, l, per, accent }) => (
   <div style={{ minWidth: 84 }}>
     <div style={{ ...S.statV, color: accent || INK }}>{v}</div>
@@ -644,6 +698,16 @@ const S = {
   h1: { margin: 0, fontSize: 23, fontWeight: 700, letterSpacing: '-.01em' },
   sub: { margin: '6px 0 0', color: MUTED, fontSize: 12.5, maxWidth: 560,
          lineHeight: 1.5 },
+
+  calWrap: { marginTop: 10 },
+  calHead: { fontSize: 9.5, fontWeight: 700, letterSpacing: '.09em', color: FAINT,
+             marginBottom: 4 },
+  calRow: { display: 'flex', gap: 2 },
+  calCell: { width: 21, height: 25, border: `1px solid ${LINE}`, borderRadius: 3,
+             fontSize: 10, display: 'flex', flexDirection: 'column',
+             alignItems: 'center', justifyContent: 'center', lineHeight: 1.05,
+             fontVariantNumeric: 'tabular-nums' },
+  calDow: { fontSize: 7.5, color: FAINT, letterSpacing: '.04em' },
 
   scope: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
            textTransform: 'uppercase', marginBottom: 7, textAlign: 'right' },

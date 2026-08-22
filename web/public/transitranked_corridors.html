@@ -23,6 +23,18 @@ header p{margin:6px 0 0;color:#6d6e71;font-size:13px;max-width:640px;line-height
   font-variant-numeric:tabular-nums}
 #scope{font-size:10px;font-weight:700;letter-spacing:.1em;color:#6d6e71;
   text-transform:uppercase;margin-bottom:7px;text-align:right}
+#calwrap{margin-top:10px}
+#calhead{font-size:9.5px;font-weight:700;letter-spacing:.09em;color:#93918d;
+  margin-bottom:4px}
+#calrow{display:flex;gap:2px}
+.cal{width:21px;height:25px;border:1px solid #e3e1dd;border-radius:3px;font-size:10px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  line-height:1.05;font-variant-numeric:tabular-nums;background:#fff;color:#1c1c1e;
+  font-weight:500}
+.cal i{font-style:normal;font-size:7.5px;color:#93918d;letter-spacing:.04em}
+.cal.we{background:#f1efec;color:#93918d}
+.cal.hol{background:#F2672418;border-color:#F26724;color:#F26724;font-weight:700}
+.cal.gap{margin-left:6px}
 
 #body{flex:1;display:flex;min-height:0}
 #panel{width:372px;min-width:320px;border-right:1px solid #e3e1dd;overflow-y:auto;background:#fcfbfa}
@@ -126,6 +138,7 @@ svg.drag{cursor:grabbing}
       <h1>Where bus delay lands in New York</h1>
       <p>Bus corridors and streets ranked by passenger-minutes lost rather than
          bus-minutes. Twenty days of GTFS-Realtime, weighted by onboard ridership.</p>
+      <div id="calwrap"><div id="calhead">26 JUN &ndash; 15 JUL 2026 &middot; 14 WEEKDAYS, 6 WEEKEND DAYS</div><div id="calrow"><div class="cal" title="Fri 26 Jun 2026"><i>F</i>26</div><div class="cal we" title="Sat 27 Jun 2026"><i>S</i>27</div><div class="cal we" title="Sun 28 Jun 2026"><i>S</i>28</div><div class="cal" title="Mon 29 Jun 2026"><i>M</i>29</div><div class="cal" title="Tue 30 Jun 2026"><i>T</i>30</div><div class="cal gap" title="Wed 1 Jul 2026"><i>W</i>1</div><div class="cal" title="Thu 2 Jul 2026"><i>T</i>2</div><div class="cal" title="Fri 3 Jul 2026"><i>F</i>3</div><div class="cal we hol" title="Sat 4 Jul 2026 - Independence Day"><i>S</i>4</div><div class="cal we" title="Sun 5 Jul 2026"><i>S</i>5</div><div class="cal" title="Mon 6 Jul 2026"><i>M</i>6</div><div class="cal" title="Tue 7 Jul 2026"><i>T</i>7</div><div class="cal" title="Wed 8 Jul 2026"><i>W</i>8</div><div class="cal" title="Thu 9 Jul 2026"><i>T</i>9</div><div class="cal" title="Fri 10 Jul 2026"><i>F</i>10</div><div class="cal we" title="Sat 11 Jul 2026"><i>S</i>11</div><div class="cal we" title="Sun 12 Jul 2026"><i>S</i>12</div><div class="cal" title="Mon 13 Jul 2026"><i>M</i>13</div><div class="cal" title="Tue 14 Jul 2026"><i>T</i>14</div><div class="cal" title="Wed 15 Jul 2026"><i>W</i>15</div></div></div>
     </div>
     <div><div id="scope"></div><div class="hstats" id="hstats"></div></div>
   </header>
