@@ -2,59 +2,64 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-/*  Where Delay Lands - every street and every corridor in the New York bus network,
- *  ranked by the delay riders absorb rather than the delay buses absorb.
+/*  New York bus corridors and streets, ranked by passenger-minutes lost.
  *
- *  TWO LAYERS, and the difference between them matters:
- *
+ *  TWO LAYERS:
+ *    CORRIDORS  298 chained runs of contiguous qualifying block, 194 miles.
+ *               20.0M passenger-minutes, 47% of the citywide total on 13% of the
+ *               network. The default view, because it is the unit a planner acts on.
  *    ROADS      1,886 streets, the whole bus network, 1,491 centreline miles.
- *               42.9M passenger-minutes: every minute generated anywhere.
- *               This is where delay actually falls.
- *    CORRIDORS  298 chained runs of contiguous bad street, 194 miles.
- *               20.0M passenger-minutes, 47% of the total on 13% of the network.
- *               This is where you would build something.
+ *               42.9M passenger-minutes: everything generated anywhere.
  *
- *  Colour always encodes the ACTIVE METRIC, never rank, so switching metric repaints
- *  the map into a genuinely different picture. That switch is the argument, so it sits
- *  near the top of the panel.
+ *  Colour encodes the ACTIVE METRIC, never rank, so switching metric repaints the map
+ *  into a different picture. That switch is the argument, so it sits near the top.
  *
- *  Data is written by Equity_Analysis/29_export_web.py and 31_export_roads.py.
+ *  Data comes from Equity_Analysis/29_export_web.py and 31_export_roads.py.
  */
 
 const SRC = {
-  roads: { data: '/data/roads.geojson', meta: '/data/roads_meta.json', idKey: 'road_id' },
   corridors: { data: '/data/corridors.geojson', meta: '/data/corridors_meta.json',
                idKey: 'corridor_id' },
+  roads: { data: '/data/roads.geojson', meta: '/data/roads_meta.json',
+           idKey: 'road_id' },
 }
+
+const DAYS = 20              // the study window, for turning totals into daily rates
 
 const INK = '#1c1c1e'
 const MUTED = '#6d6e71'
+const FAINT = '#93918d'
 const LINE = '#e3e1dd'
 const ORANGE = '#F26724'
 const BLUE = '#476AA3'
 const PAPER = '#ffffff'
 
-// single-hue ramps: magnitude by lightness, never by hue rotation
-const RAMP_PAX = ['#FBD9C4', '#F5A970', '#EE8440', '#D4570F', '#8A3208']
-const RAMP_BUS = ['#D3DEEB', '#A9BFD8', '#7B9AC2', '#4F76A6', '#2C4B77']
+/* Single-hue ramps, magnitude by lightness. Every step is solved to a fixed contrast
+ * ratio against the basemap land colour (1.95 / 2.72 / 3.80 / 5.30 / 7.40) with an
+ * even 1.40 between neighbours, so the bottom class still reads as a line instead of
+ * disappearing into the map. The old ramp bottomed out at 1.18, which is why the low
+ * ranks were invisible. */
+const RAMP_PAX = ['#EE9C65', '#E97121', '#C75A11', '#A3490C', '#813908']
+const RAMP_BUS = ['#98B1D1', '#7395C3', '#4F7CB7', '#3C659A', '#2D4F7B']
+const WIDTHS = [1.9, 2.4, 3.1, 4.0, 5.2]
 const CLASS_LABELS = ['lowest half', '50-75th', '75-90th', '90-97th', 'worst 3%']
 
 const METRICS = [
   { id: 'pax_delay_min', label: 'Passenger delay', unit: 'passenger-min',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'Bus delay multiplied by how many people were on board.' },
+    blurb: 'Bus delay multiplied by the number of people on board.' },
   { id: 'veh_delay_min', label: 'Bus delay', unit: 'bus-min',
     ramp: RAMP_BUS, accent: BLUE,
-    blurb: 'The conventional measure. Every bus counts the same, full or empty.' },
+    blurb: 'Unweighted delay. Every bus counts the same regardless of load.' },
   { id: 'riders_20d', label: 'Riders carried', unit: 'riders',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'Passengers past an average point over 20 days.' },
+    blurb: 'Passengers past an average point over the 20 days.' },
   { id: 'min_per_bus', label: 'Minutes per bus', unit: 'min',
     ramp: RAMP_BUS, accent: BLUE,
-    blurb: 'What an average bus loses over the whole length.' },
+    blurb: 'Minutes an average bus loses end to end.' },
   { id: 'sec_per_rider', label: 'Seconds per rider', unit: 'sec',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'What a rider aboard for the whole length loses.' },
+    blurb: 'Seconds lost by a rider aboard end to end.' },
 ]
 
 const PERIODS = [
@@ -71,22 +76,21 @@ const fmt = (n, d = 0) =>
     : Number(n).toLocaleString('en-US', { minimumFractionDigits: d,
                                           maximumFractionDigits: d })
 const compact = (n) => {
-  if (n === null || n === undefined) return '—'
+  if (n === null || n === undefined || Number.isNaN(Number(n))) return '—'
   const a = Math.abs(n)
   if (a >= 1e6) return `${(n / 1e6).toFixed(a >= 1e7 ? 0 : 1)}M`
   if (a >= 1e3) return `${(n / 1e3).toFixed(a >= 1e4 ? 0 : 1)}k`
   return `${Math.round(n)}`
 }
 
-/* percentile breaks: intensity is log-normal, so equal intervals would drop
- * four-fifths of the network into a single class */
+/* Percentile breaks. Intensity is log-normal, so equal intervals put most of the
+ * network in one class. Ties are nudged apart because MapLibre rejects a step whose
+ * stops are not strictly ascending. */
 function breaks(values) {
   const v = values.filter((x) => x > 0).sort((a, b) => a - b)
   if (!v.length) return [1, 2, 3, 4]
   const at = (p) => v[Math.min(v.length - 1, Math.floor(p * v.length))]
   const b = [at(0.5), at(0.75), at(0.9), at(0.97)]
-  // rounded values tie often, and MapLibre throws on a step stop that is not
-  // strictly ascending, so nudge any tie up rather than let the map go blank
   for (let i = 1; i < b.length; i++) if (b[i] <= b[i - 1]) b[i] = b[i - 1] + 1e-6
   return b
 }
@@ -97,44 +101,37 @@ export default function CorridorsApp() {
   const popRef = useRef(null)
 
   const [sets, setSets] = useState({ roads: null, corridors: null })
-  const [metas, setMetas] = useState({ roads: null, corridors: null })
   const [error, setError] = useState(null)
+  const [ready, setReady] = useState(false)
 
-  const [view, setView] = useState('roads')
+  const [view, setView] = useState('corridors')
   const [metricId, setMetricId] = useState('pax_delay_min')
   const [boros, setBoros] = useState(null)
-  const [topN, setTopN] = useState(400)
+  const [topN, setTopN] = useState(50)
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(null)
-  const [ready, setReady] = useState(false)
   const [hover, setHover] = useState(null)
 
   const metric = METRICS.find((m) => m.id === metricId)
   const features = sets[view]
-  const meta = metas[view]
 
   useEffect(() => {
     let alive = true
-    const grab = (k) => Promise.all([
-      fetch(SRC[k].data).then((r) => {
-        if (!r.ok) throw new Error(`${SRC[k].data} ${r.status}`)
-        return r.json()
-      }),
-      fetch(SRC[k].meta).then((r) => (r.ok ? r.json() : null)),
-    ]).then(([gj, m]) => {
-      // one id field, so nothing downstream has to care which layer it came from
+    const grab = (k) => fetch(SRC[k].data).then((r) => {
+      if (!r.ok) throw new Error(`${SRC[k].data} ${r.status}`)
+      return r.json()
+    }).then((gj) => {
+      // one id field, so nothing downstream cares which layer it came from
       gj.features.forEach((f) => { f.properties.fid = f.properties[SRC[k].idKey] })
-      return [k, gj.features, m]
+      return [k, gj.features]
     })
 
-    Promise.all([grab('roads'), grab('corridors')])
+    Promise.all([grab('corridors'), grab('roads')])
       .then((res) => {
         if (!alive) return
         const s = {}
-        const mm = {}
-        res.forEach(([k, f, m]) => { s[k] = f; mm[k] = m })
+        res.forEach(([k, f]) => { s[k] = f })
         setSets(s)
-        setMetas(mm)
         setBoros(new Set([...s.roads, ...s.corridors]
           .map((f) => f.properties.borough)))
       })
@@ -187,8 +184,8 @@ export default function CorridorsApp() {
         },
         layers: [{
           id: 'osm', type: 'raster', source: 'osm',
-          paint: { 'raster-saturation': -0.88, 'raster-contrast': -0.12,
-                   'raster-brightness-min': 0.18 },
+          paint: { 'raster-saturation': -0.9, 'raster-contrast': -0.15,
+                   'raster-brightness-min': 0.24 },
         }],
       },
       center: [-73.94, 40.70],
@@ -209,7 +206,7 @@ export default function CorridorsApp() {
         map.addSource('lines', { type: 'geojson', data })
         map.addLayer({ id: 'lines-casing', type: 'line', source: 'lines',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: { 'line-color': PAPER, 'line-width': 5, 'line-opacity': 0.7 } })
+          paint: { 'line-color': PAPER, 'line-width': 6, 'line-opacity': 0.85 } })
         map.addLayer({ id: 'lines', type: 'line', source: 'lines',
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: { 'line-color': ORANGE, 'line-width': 2 } })
@@ -228,10 +225,10 @@ export default function CorridorsApp() {
               className: 'corridor-tip' })
           }
           popRef.current.setLngLat(e.lngLat).setHTML(
-            '<div class="tipname">#' + p.rank + ' ' + p.name + '</div>' +
-            '<div class="tipsub">' + Number(p.pax_delay_min).toLocaleString() +
-            ' passenger-min &middot; ' + Number(p.riders_20d).toLocaleString() +
-            ' riders</div>').addTo(map)
+            '<div class="tipname">' + p.rank + '. ' + p.name + '</div>' +
+            '<div class="tipsub">' +
+            Math.round(Number(p.pax_delay_min) / DAYS).toLocaleString() +
+            ' passenger-min lost per day</div>').addTo(map)
         })
         map.on('mouseleave', 'lines-hit', () => {
           map.getCanvas().style.cursor = ''
@@ -256,8 +253,7 @@ export default function CorridorsApp() {
     if (!map || !ready || !map.getLayer('lines') || !boros) return
 
     /* A literal id list is fine for a handful of search hits but slow for 1,886
-     * streets, so the normal path filters on the properties themselves and only
-     * falls back to ids when a search has already narrowed things down. */
+     * streets, so the normal path filters on the properties themselves. */
     const cutoff = rows.length
       ? Number(rows[rows.length - 1][metricId]) || 0
       : Number.POSITIVE_INFINITY
@@ -273,17 +269,18 @@ export default function CorridorsApp() {
         metric.ramp[0], brk[0], metric.ramp[1], brk[1], metric.ramp[2],
         brk[2], metric.ramp[3], brk[3], metric.ramp[4]]]
     const width = ['case',
-      ['==', ['get', 'fid'], selId], 6.5,
-      ['==', ['get', 'fid'], hover === null ? '__none__' : hover], 5.5,
+      ['==', ['get', 'fid'], selId], 7,
+      ['==', ['get', 'fid'], hover === null ? '__none__' : hover], 6,
       ['step', ['coalesce', ['get', metricId], 0],
-        1.4, brk[0], 1.9, brk[1], 2.6, brk[2], 3.6, brk[3], 4.8]]
+        WIDTHS[0], brk[0], WIDTHS[1], brk[1], WIDTHS[2],
+        brk[2], WIDTHS[3], brk[3], WIDTHS[4]]]
 
     const ids = ['lines', 'lines-casing', 'lines-hit']
     ids.forEach((id) => map.setFilter(id, filter))
     map.setPaintProperty('lines', 'line-color', colour)
     map.setPaintProperty('lines', 'line-width', width)
     map.setPaintProperty('lines-casing', 'line-width',
-      ['+', 2.5, ['case', ['==', ['get', 'fid'], selId], 6.5, 2]])
+      ['+', 2.6, ['case', ['==', ['get', 'fid'], selId], 7, 2.6]])
   }, [rows, metricId, brk, sel, hover, metric, boros, query, ready])
 
   const focus = (p) => {
@@ -308,7 +305,7 @@ export default function CorridorsApp() {
   const switchView = (v) => {
     setView(v)
     setSel(null)
-    setTopN(v === 'roads' ? 400 : 298)
+    setTopN(v === 'corridors' ? 50 : 200)
   }
 
   if (error) {
@@ -317,42 +314,46 @@ export default function CorridorsApp() {
         <h1 style={{ margin: 0, fontSize: 20 }}>Could not load the data</h1>
         <p style={{ color: MUTED }}>{error}</p>
         <p style={{ color: MUTED, fontSize: 13 }}>
-          Expecting roads.geojson and corridors.geojson under <code>public/data/</code>.
+          Expecting corridors.geojson and roads.geojson under <code>public/data/</code>.
         </p>
       </div>
     )
   }
 
   const nAll = features ? features.length : 0
-  const headRiders = view === 'roads'
-    ? (meta && meta.riders_20d) : (meta && meta.totals && meta.totals.riders_20d)
-  const headPax = view === 'roads'
-    ? (meta && meta.passenger_delay_min)
-    : (meta && meta.totals && meta.totals.passenger_delay_min)
-  const headBus = view === 'roads'
-    ? (meta && meta.bus_delay_min)
-    : (meta && meta.totals && meta.totals.bus_delay_min)
+  const noun = view === 'corridors' ? 'corridors' : 'streets'
+  const scope = !nAll ? 'loading'
+    : totals.n >= nAll ? `all ${fmt(nAll)} ${noun}`
+    : `top ${fmt(totals.n)} of ${fmt(nAll)} ${noun}`
 
   return (
     <div style={S.page}>
       <header style={S.header}>
-        <div>
+        <div style={{ minWidth: 300 }}>
           <div style={S.eyebrow}>TRANSIT RANKED</div>
           <h1 style={S.h1}>Where bus delay lands in New York</h1>
           <p style={S.sub}>
-            Every street the buses run on, ranked by the delay its riders absorb rather
-            than the delay its buses absorb. Twenty days of GTFS-Realtime, weighted by
-            how many people were actually on board.
+            Bus corridors and streets ranked by passenger-minutes lost rather than
+            bus-minutes. Twenty days of GTFS-Realtime, weighted by onboard ridership.
           </p>
         </div>
-        {meta && (
+
+        {/* every figure for what is on screen, and it tracks both layers alike */}
+        <div>
+          <div style={S.scope}>{scope}</div>
           <div style={S.hstats}>
-            <Stat v={compact(headRiders)} l="riders carried" accent={ORANGE} />
-            <Stat v={compact(headPax)} l="passenger-minutes lost" />
-            <Stat v={compact(headBus)} l="bus-minutes lost" />
-            <Stat v={fmt(nAll)} l={view === 'roads' ? 'streets' : 'corridors'} />
+            <Stat v={compact(totals.riders)} l="riders carried"
+                  per={`${compact(totals.riders / DAYS)} per day`} accent={ORANGE} />
+            <Stat v={compact(totals.pax)} l="passenger-min lost"
+                  per={`${compact(totals.pax / DAYS)} per day`} />
+            <Stat v={compact(totals.bus)} l="bus-min lost"
+                  per={`${compact(totals.bus / DAYS)} per day`} />
+            <Stat v={compact(totals.trips)} l="bus trips"
+                  per={`${compact(totals.trips / DAYS)} per day`} />
+            <Stat v={fmt(totals.n)} l={noun}
+                  per={`${totals.miles.toFixed(1)} centreline mi`} />
           </div>
-        )}
+        </div>
       </header>
 
       <div style={S.body}>
@@ -360,17 +361,17 @@ export default function CorridorsApp() {
           <section style={S.block}>
             <div style={S.label}>WHAT TO SHOW</div>
             <div style={S.viewGrid}>
-              <ViewBtn on={view === 'roads'} onClick={() => switchView('roads')}
-                       n={sets.roads && sets.roads.length} lab="roads"
-                       sub="every street a bus runs on" />
               <ViewBtn on={view === 'corridors'} onClick={() => switchView('corridors')}
                        n={sets.corridors && sets.corridors.length} lab="corridors"
-                       sub="contiguous runs worth funding" />
+                       sub="contiguous runs of bad street" />
+              <ViewBtn on={view === 'roads'} onClick={() => switchView('roads')}
+                       n={sets.roads && sets.roads.length} lab="streets"
+                       sub="all streets with bus service" />
             </div>
             <p style={S.blurb}>
-              {view === 'roads'
-                ? 'All 1,886 streets carrying bus service, over 1,491 centreline miles. Between them they hold every one of the 42.9M passenger-minutes generated citywide.'
-                : 'The 298 chained corridors, on 194 miles. They hold 20.0M passenger-minutes, 47% of the citywide total, on 13% of the network.'}
+              {view === 'corridors'
+                ? '298 corridors chained from contiguous qualifying blocks, 194 miles. They carry 20.0M passenger-minutes, 47% of the citywide total, on 13% of the network. The qualifying threshold is a percentile taken within each borough.'
+                : '1,886 streets with bus service, 1,491 centreline miles. Between them they hold all 42.9M passenger-minutes generated citywide, with no chaining step in between.'}
             </p>
           </section>
 
@@ -381,7 +382,7 @@ export default function CorridorsApp() {
                 <button key={m.id} onClick={() => setMetricId(m.id)} style={{
                   ...S.mBtn,
                   borderColor: metricId === m.id ? m.accent : LINE,
-                  background: metricId === m.id ? `${m.accent}14` : PAPER,
+                  background: metricId === m.id ? `${m.accent}12` : PAPER,
                   color: metricId === m.id ? m.accent : INK,
                   fontWeight: metricId === m.id ? 700 : 500,
                 }}>{m.label}</button>
@@ -409,35 +410,28 @@ export default function CorridorsApp() {
                    value={Math.min(topN, nAll || 100)}
                    onChange={(e) => setTopN(Number(e.target.value))} style={S.range} />
             <div style={S.ticks}>
-              {(view === 'roads' ? [25, 100, 400, 1000, nAll] : [10, 50, 100, 200, nAll])
+              {(view === 'corridors' ? [10, 50, 100, 200, nAll]
+                                     : [25, 100, 400, 1000, nAll])
                 .filter((n) => n && n <= nAll)
                 .map((n) => (
-                  <button key={n} onClick={() => setTopN(n)} style={S.tick}>{fmt(n)}</button>
+                  <button key={n} onClick={() => setTopN(n)} style={{
+                    ...S.tick,
+                    color: topN === n ? metric.accent : MUTED,
+                    fontWeight: topN === n ? 700 : 400,
+                  }}>{fmt(n)}</button>
                 ))}
             </div>
 
             <input value={query} onChange={(e) => setQuery(e.target.value)}
-                   placeholder="Search a street or route (B41, Utica...)"
+                   placeholder="Search a street or route (B41, Utica)"
                    style={S.search} />
-          </section>
-
-          <section style={{ ...S.block, borderTop: `1px solid ${LINE}` }}>
-            <div style={S.label}>WHAT IS ON SCREEN</div>
-            <div style={S.sumGrid}>
-              <Sum v={fmt(totals.n)} l={view === 'roads' ? 'streets' : 'corridors'} />
-              <Sum v={compact(totals.riders)} l="riders" accent={ORANGE} />
-              <Sum v={compact(totals.pax)} l="passenger-min" />
-              <Sum v={compact(totals.bus)} l="bus-min" />
-              <Sum v={compact(totals.trips)} l="bus trips" />
-              <Sum v={totals.miles.toFixed(1)} l="miles" />
-            </div>
           </section>
 
           <section style={{ ...S.block, borderTop: `1px solid ${LINE}` }}>
             <div style={S.label}>{metric.label.toUpperCase()} ({metric.unit})</div>
             {metric.ramp.map((c, i) => (
               <div key={i} style={S.lRow}>
-                <span style={{ ...S.lSw, background: c, height: 3 + i * 1.2 }} />
+                <span style={{ ...S.lSw, background: c, height: WIDTHS[i] }} />
                 <span style={S.lLab}>{CLASS_LABELS[i]}</span>
                 <span style={S.lVal}>
                   {i === 0 ? '< ' + compact(brk[0])
@@ -448,7 +442,7 @@ export default function CorridorsApp() {
             ))}
             <p style={S.blurb}>
               Classes are percentiles of what is on screen. Intensity is log-normal, so
-              equal intervals would put four-fifths of the network into one band.
+              equal intervals would put most of the network in one band.
             </p>
           </section>
 
@@ -463,8 +457,8 @@ export default function CorridorsApp() {
                         onMouseLeave={() => setHover(null)}
                         style={{
                           ...S.row,
-                          background: on ? `${metric.accent}14`
-                            : hover === p.fid ? '#f5f4f2' : 'transparent',
+                          background: on ? `${metric.accent}12`
+                            : hover === p.fid ? '#f4f3f1' : 'transparent',
                           borderLeftColor: on ? metric.accent : 'transparent',
                         }}>
                   <span style={{ ...S.rRank, color: i < 10 ? metric.accent : MUTED }}>
@@ -473,8 +467,8 @@ export default function CorridorsApp() {
                   <span style={S.rName}>
                     <span style={S.rTitle}>{p.name}</span>
                     <span style={S.rMeta}>
-                      {p.miles} mi &middot; {p.n_routes} routes &middot;{' '}
-                      {compact(p.riders_20d)} riders
+                      {p.miles} mi · {p.n_routes} routes ·{' '}
+                      {compact(Number(p.riders_20d) / DAYS)} riders/day
                     </span>
                   </span>
                   <span style={S.rVal}>{compact(p[metricId])}</span>
@@ -487,7 +481,7 @@ export default function CorridorsApp() {
 
         <main style={S.mapWrap}>
           <div ref={boxRef} style={S.map} />
-          {!features && <div style={S.loading}>Loading the bus network...</div>}
+          {!features && <div style={S.loading}>Loading the bus network</div>}
           {sel && <Detail p={sel} metric={metric} view={view} total={nAll}
                           onClose={() => setSel(null)} />}
         </main>
@@ -499,24 +493,19 @@ export default function CorridorsApp() {
 const ViewBtn = ({ on, onClick, n, lab, sub }) => (
   <button onClick={onClick} style={{
     ...S.viewBtn, borderColor: on ? ORANGE : LINE,
-    background: on ? '#F2672412' : PAPER,
+    background: on ? '#F2672410' : PAPER,
   }}>
     <b style={{ color: on ? ORANGE : INK, fontSize: 12.5 }}>
-      {n ? fmt(n) : '...'} {lab}
+      {n ? fmt(n) : '—'} {lab}
     </b>
     <span style={S.viewSub}>{sub}</span>
   </button>
 )
-const Stat = ({ v, l, accent }) => (
-  <div style={{ minWidth: 92 }}>
+const Stat = ({ v, l, per, accent }) => (
+  <div style={{ minWidth: 84 }}>
     <div style={{ ...S.statV, color: accent || INK }}>{v}</div>
     <div style={S.statL}>{l}</div>
-  </div>
-)
-const Sum = ({ v, l, accent }) => (
-  <div>
-    <div style={{ ...S.sumV, color: accent || INK }}>{v}</div>
-    <div style={S.sumL}>{l}</div>
+    {per && <div style={S.statPer}>{per}</div>}
   </div>
 )
 
@@ -544,29 +533,31 @@ function Detail({ p, metric, view, total, onClose }) {
           </div>
           <h2 style={S.dH}>{p.name}</h2>
           <div style={S.dSub}>
-            {p.borough} &middot; {p.miles} miles &middot; {p.n_blocks} roadway blocks
-            {view === 'roads' ? '' : ' chained'}
+            {p.borough} · {p.miles} miles · {p.n_blocks} roadway blocks
+            {view === 'corridors' ? ' chained' : ''}
           </div>
         </div>
         <button onClick={onClose} style={S.close} aria-label="Close">&times;</button>
       </div>
 
       <div style={S.dGrid}>
-        <Cell big v={fmt(p.riders_20d)} l="riders carried"
-              sub="past an average point, 20 days" accent={ORANGE} />
-        <Cell big v={fmt(p.pax_delay_min)} l="passenger-minutes lost" />
-        <Cell v={fmt(p.veh_delay_min)} l="bus-minutes lost" />
-        <Cell v={fmt(p.bus_trips_20d)} l="bus trips" sub="past an average point" />
+        <Cell big v={fmt(p.riders_per_day)} l="riders per day"
+              sub={`${fmt(p.riders_20d)} over 20 days`} accent={ORANGE} />
+        <Cell big v={fmt(Number(p.pax_delay_min) / DAYS)} l="passenger-min lost per day"
+              sub={`${fmt(p.pax_delay_min)} over 20 days`} />
+        <Cell v={fmt(Number(p.veh_delay_min) / DAYS)} l="bus-min lost per day"
+              sub={`${fmt(p.veh_delay_min)} over 20 days`} />
+        <Cell v={fmt(p.buses_per_day)} l="buses per day"
+              sub={`${fmt(p.bus_trips_20d)} over 20 days`} />
         <Cell v={fmt(p.min_per_bus, 2)} l="minutes lost end to end"
               sub="for the bus, and a rider aboard" />
         <Cell v={fmt(p.riders_per_bus, 1)} l="riders per bus" sub="average load" />
         <Cell v={fmt(p.sec_per_rider)} l="seconds lost per rider" />
         <Cell v={fmt(p.riders_per_delayed_bus_min, 1)} l="riders per bus-minute lost" />
-        <Cell v={fmt(p.riders_per_day)} l="riders per day" />
-        <Cell v={fmt(p.buses_per_day)} l="buses per day" />
         <Cell v={fmt(p.share_of_city_delay_pct, 2) + '%'}
-              l={view === 'roads' ? 'of citywide delay' : 'of all corridor delay'} />
-        <Cell v={fmt(p.pax_delay_per_mile)} l="passenger-min per mile" />
+              l={view === 'corridors' ? 'of all corridor delay' : 'of citywide delay'} />
+        <Cell v={fmt(p.pax_delay_per_mile)} l="passenger-min per mile"
+              sub="over 20 days" />
       </div>
 
       <div style={S.dBlock}>
@@ -583,7 +574,7 @@ function Detail({ p, metric, view, total, onClose }) {
                 <span style={{
                   ...S.pBar,
                   width: ((Number(p['pax_' + q.id]) || 0) / pMax) * 100 + '%',
-                  background: p.peak_period === q.id ? metric.accent : '#d8d6d2',
+                  background: p.peak_period === q.id ? metric.accent : '#cfcdc9',
                 }} />
               </span>
               <span style={S.pVal}>
@@ -601,7 +592,7 @@ function Detail({ p, metric, view, total, onClose }) {
                         ...S.sparkBar,
                         height: Math.max(2, (v / hMax) * 44) + 'px',
                         background: (h >= 6 && h <= 9) || (h >= 15 && h <= 18)
-                          ? metric.accent : '#d8d6d2',
+                          ? metric.accent : '#cfcdc9',
                       }} />
               ))}
             </div>
@@ -614,7 +605,7 @@ function Detail({ p, metric, view, total, onClose }) {
 
       <div style={S.dBlock}>
         <div style={S.label}>
-          {routes.length} ROUTES USE THIS {view === 'roads' ? 'STREET' : 'CORRIDOR'}
+          {routes.length} ROUTES USE THIS {view === 'corridors' ? 'CORRIDOR' : 'STREET'}
         </div>
         <div style={S.rtWrap}>
           {routes.map((r) => <span key={r} style={S.rt}>{r}</span>)}
@@ -625,7 +616,8 @@ function Detail({ p, metric, view, total, onClose }) {
         Both directions are combined, because an intervention is scoped for the street
         rather than one side of it. Delay is clipped at the source cell, so a bus
         recovering time is not counted as negative delay. Riders are counted past an
-        average point, not summed along the length.
+        average point, not summed along the length. Daily figures divide the 20-day
+        total by 20, so they average weekdays and weekends together.
       </p>
     </div>
   )
@@ -644,20 +636,26 @@ const S = {
   page: { fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif', color: INK,
           background: PAPER, height: '100vh', display: 'flex',
           flexDirection: 'column', overflow: 'hidden' },
-  header: { padding: '16px 24px 14px', borderBottom: `1px solid ${LINE}`,
+  header: { padding: '14px 24px 12px', borderBottom: `1px solid ${LINE}`,
             display: 'flex', gap: 28, alignItems: 'flex-start',
             justifyContent: 'space-between', flexWrap: 'wrap' },
   eyebrow: { fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', color: ORANGE,
              marginBottom: 5 },
-  h1: { margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-.01em' },
-  sub: { margin: '6px 0 0', color: MUTED, fontSize: 13, maxWidth: 640,
+  h1: { margin: 0, fontSize: 23, fontWeight: 700, letterSpacing: '-.01em' },
+  sub: { margin: '6px 0 0', color: MUTED, fontSize: 12.5, maxWidth: 560,
          lineHeight: 1.5 },
-  hstats: { display: 'flex', gap: 24 },
-  statV: { fontSize: 24, fontWeight: 700, lineHeight: 1.05 },
+
+  scope: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
+           textTransform: 'uppercase', marginBottom: 7, textAlign: 'right' },
+  hstats: { display: 'flex', gap: 22 },
+  statV: { fontSize: 22, fontWeight: 700, lineHeight: 1.05,
+           fontVariantNumeric: 'tabular-nums' },
   statL: { fontSize: 10.5, color: MUTED, marginTop: 3 },
+  statPer: { fontSize: 10, color: FAINT, marginTop: 1,
+             fontVariantNumeric: 'tabular-nums' },
 
   body: { flex: 1, display: 'flex', minHeight: 0 },
-  panel: { width: 384, minWidth: 330, borderRight: `1px solid ${LINE}`,
+  panel: { width: 380, minWidth: 330, borderRight: `1px solid ${LINE}`,
            overflowY: 'auto', background: '#fcfbfa' },
   block: { padding: '15px 19px' },
   label: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
@@ -679,15 +677,11 @@ const S = {
           border: `1px solid ${LINE}`, cursor: 'pointer', fontFamily: 'inherit' },
   range: { width: '100%', accentColor: ORANGE },
   ticks: { display: 'flex', gap: 6, marginTop: 3 },
-  tick: { fontSize: 10.5, color: MUTED, background: 'none', border: 'none',
-          cursor: 'pointer', padding: '2px 3px', fontFamily: 'inherit' },
+  tick: { fontSize: 10.5, background: 'none', border: 'none', cursor: 'pointer',
+          padding: '2px 3px', fontFamily: 'inherit' },
   search: { width: '100%', marginTop: 14, padding: '8px 10px', fontSize: 12.5,
             border: `1px solid ${LINE}`, borderRadius: 6, fontFamily: 'inherit',
             boxSizing: 'border-box' },
-
-  sumGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '11px 6px' },
-  sumV: { fontSize: 16, fontWeight: 700, lineHeight: 1.1 },
-  sumL: { fontSize: 10, color: MUTED, marginTop: 2 },
 
   lRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '3px 0' },
   lSw: { width: 28, borderRadius: 2, flexShrink: 0 },
@@ -724,12 +718,12 @@ const S = {
            margin: '16px 0 4px' },
   cellV: { fontWeight: 700, lineHeight: 1.12, fontVariantNumeric: 'tabular-nums' },
   cellL: { fontSize: 10.5, color: MUTED, marginTop: 2, lineHeight: 1.3 },
-  cellSub: { fontSize: 9.5, color: '#a9a7a3', marginTop: 1 },
+  cellSub: { fontSize: 9.5, color: FAINT, marginTop: 1 },
   dBlock: { marginTop: 18, paddingTop: 14, borderTop: `1px solid ${LINE}` },
 
   pRow: { display: 'flex', alignItems: 'center', gap: 9, padding: '3px 0' },
   pName: { fontSize: 11, width: 104, fontWeight: 600 },
-  pBarWrap: { flex: 1, height: 7, background: '#f0efed', borderRadius: 4 },
+  pBarWrap: { flex: 1, height: 7, background: '#efedea', borderRadius: 4 },
   pBar: { display: 'block', height: 7, borderRadius: 4 },
   pVal: { fontSize: 10.5, color: MUTED, width: 36, textAlign: 'right',
           fontVariantNumeric: 'tabular-nums' },

@@ -22,6 +22,10 @@ median block runs 131 passenger-min per 100 ft against 294-332 elsewhere, so onl
 of its network qualified, and Richmond Avenue, one of DOT's own 50 priority corridors,
 produced no corridor at all.
 
+Corridors is the default view at the top 50. The header carries every figure for
+whatever is on screen -- riders, passenger-minutes, bus-minutes, bus trips, count and
+centreline miles -- each with its per-day rate underneath, and it tracks both layers.
+
 Colour and rank follow whichever metric is selected, so switching from **bus delay**
 to **passenger delay** repaints the map into a different picture. That switch is the
 argument the site makes, so it sits directly under the view toggle.
