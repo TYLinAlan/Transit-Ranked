@@ -517,7 +517,7 @@ export default function CorridorsApp() {
                 </button>
               )
             })}
-            {!rows.length && <p style={S.aside}>Nothing matches that filter.</p>}
+            {!rows.length && <p style={S.blurb}>Nothing matches that filter.</p>}
             <details style={S.method}>
               <summary style={S.methodHead}>Method</summary>
               <p style={S.methodBody}>
@@ -769,8 +769,6 @@ const S = {
   block: { padding: '15px 19px' },
   label: { fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 8 },
   blurb: { fontSize: 11.5, color: MUTED, lineHeight: 1.45, margin: '8px 0 0' },
-  aside: { fontSize: 11.5, color: MUTED, lineHeight: 1.45, margin: '9px 0 0',
-           paddingLeft: 9, borderLeft: `2px solid ${LINE}` },
   thead: { display: 'flex', alignItems: 'baseline', gap: 9, padding: '0 7px 6px',
            fontSize: 10.5, color: FAINT, borderBottom: `1px solid ${LINE}`,
            marginBottom: 4 },
