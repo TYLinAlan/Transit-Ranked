@@ -64,19 +64,19 @@ const CLASS_LABELS = ['lowest half', '50-75th', '75-90th', '90-97th', 'worst 3%'
 const METRICS = [
   { id: 'pax_delay_min', label: 'Passenger delay', unit: 'passenger-min',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'Bus delay multiplied by the number of people on board.' },
+    blurb: 'Minutes lost, times the people who lost them.' },
   { id: 'veh_delay_min', label: 'Bus delay', unit: 'bus-min',
     ramp: RAMP_BUS, accent: BLUE,
-    blurb: 'Unweighted delay. Every bus counts the same regardless of load.' },
+    blurb: 'Minutes the bus lost. Empty or full, same weight.' },
   { id: 'riders_20d', label: 'Riders carried', unit: 'riders',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'Passengers past an average point over the 20 days.' },
+    blurb: 'People past an average point, over the 20 days.' },
   { id: 'min_per_bus', label: 'Minutes per bus', unit: 'min',
     ramp: RAMP_BUS, accent: BLUE,
-    blurb: 'Minutes an average bus loses end to end.' },
+    blurb: 'What a bus loses end to end.' },
   { id: 'sec_per_rider', label: 'Seconds per rider', unit: 'sec',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'Seconds lost by a rider aboard end to end.' },
+    blurb: 'What a rider aboard the whole way loses.' },
 ]
 
 const PERIODS = [
@@ -92,6 +92,11 @@ const fmt = (n, d = 0) =>
     ? '—'
     : Number(n).toLocaleString('en-US', { minimumFractionDigits: d,
                                           maximumFractionDigits: d })
+const pct = (part, whole) => {
+  if (!whole) return '—'
+  const v = (part / whole) * 100
+  return v >= 10 ? `${v.toFixed(0)}%` : v >= 0.1 ? `${v.toFixed(1)}%` : '<0.1%'
+}
 const compact = (n) => {
   if (n === null || n === undefined || Number.isNaN(Number(n))) return '—'
   const a = Math.abs(n)
@@ -173,6 +178,17 @@ export default function CorridorsApp() {
       .sort((a, b) => (Number(b[metricId]) || 0) - (Number(a[metricId]) || 0))
       .slice(0, topN)
   }, [features, boros, query, metricId, topN])
+
+  /* Citywide totals come from the run layer, which covers the whole network with
+   * nothing filtered out. Summing them here rather than hardcoding means a rebuild of
+   * the data cannot leave a stale percentage on screen. */
+  const city = useMemo(() => {
+    const r = sets.runs
+    if (!r) return null
+    const sum = (k) => r.reduce((a, f) => a + (Number(f.properties[k]) || 0), 0)
+    return { pax: sum('pax_delay_min'), veh: sum('veh_delay_min'),
+             miles: sum('miles') }
+  }, [sets.runs])
 
   const brk = useMemo(
     () => breaks(rows.map((r) => Number(r[metricId]) || 0)), [rows, metricId])
@@ -356,8 +372,8 @@ export default function CorridorsApp() {
           <div style={S.eyebrow}>TRANSIT RANKED</div>
           <h1 style={S.h1}>Where bus delay lands in New York</h1>
           <p style={S.sub}>
-            Bus corridors and streets ranked by passenger-minutes lost rather than
-            bus-minutes. Twenty days of GTFS-Realtime, weighted by onboard ridership.
+            Twenty days of MTA real-time data, matched to the street and weighted by
+            how many people were on the bus.
           </p>
         </div>
 
@@ -370,13 +386,16 @@ export default function CorridorsApp() {
             <Stat v={compact(totals.riders)} l="riders carried"
                   per={`${compact(totals.riders / DAYS)} per day`} accent={ORANGE} />
             <Stat v={compact(totals.pax)} l="passenger-min lost"
-                  per={`${compact(totals.pax / DAYS)} per day`} />
+                  per={`${compact(totals.pax / DAYS)} per day`}
+                  pct={city && `${pct(totals.pax, city.pax)} of citywide`} />
             <Stat v={compact(totals.bus)} l="bus-min lost"
-                  per={`${compact(totals.bus / DAYS)} per day`} />
+                  per={`${compact(totals.bus / DAYS)} per day`}
+                  pct={city && `${pct(totals.bus, city.veh)} of citywide`} />
             <Stat v={compact(totals.trips)} l="bus trips"
                   per={`${compact(totals.trips / DAYS)} per day`} />
             <Stat v={fmt(totals.n)} l={noun}
-                  per={`${totals.miles.toFixed(1)} centreline mi`} />
+                  per={`${totals.miles.toFixed(1)} centreline mi`}
+                  pct={city && `${pct(totals.miles, city.miles)} of the network`} />
           </div>
         </div>
       </header>
@@ -388,15 +407,15 @@ export default function CorridorsApp() {
             <div style={S.viewGrid}>
               <ViewBtn on={view === 'corridors'} onClick={() => switchView('corridors')}
                        n={sets.corridors && sets.corridors.length} lab="corridors"
-                       sub="contiguous runs of bad street" />
+                       sub="the bad stretches" />
               <ViewBtn on={view === 'runs'} onClick={() => switchView('runs')}
                        n={sets.runs && sets.runs.length} lab="runs"
-                       sub="every stretch of bus street" />
+                       sub="every bus street" />
             </div>
             <p style={S.blurb}>
               {view === 'corridors'
-                ? '300 corridors chained from contiguous qualifying blocks, 194 miles. They carry 20.0M passenger-minutes, 47% of the citywide total, on 13% of the network. The qualifying threshold is a percentile taken within each borough.'
-                : '3,628 continuous stretches of bus-carrying street, 1,491 centreline miles. Between them they hold all 42.9M passenger-minutes generated citywide. A run ends where the street does, so every row is somewhere you could walk end to end.'}
+                ? 'Bad blocks, chained where they touch. 300 corridors over 194 miles hold 47% of the delay on 13% of the streets. The cut is a percentile within each borough, so Staten Island is judged against Staten Island.'
+                : 'Every bus street in the city, cut where the street breaks. 3,628 stretches, 1,491 miles, nothing filtered out. Broadway in Manhattan is 18 runs here, not one row with an average on it.'}
             </p>
           </section>
 
@@ -448,7 +467,7 @@ export default function CorridorsApp() {
             </div>
 
             <input value={query} onChange={(e) => setQuery(e.target.value)}
-                   placeholder="Search a street or route (B41, Utica)"
+                   placeholder="B41, Utica, Flatbush"
                    style={S.search} />
           </section>
 
@@ -466,8 +485,8 @@ export default function CorridorsApp() {
               </div>
             ))}
             <p style={S.blurb}>
-              Classes are percentiles of what is on screen. Intensity is log-normal, so
-              equal intervals would put most of the network in one band.
+              Percentile classes, taken from whatever is on screen. Even intervals
+              would dump four fifths of the city into one colour.
             </p>
           </section>
 
@@ -559,11 +578,13 @@ function Calendar() {
   )
 }
 
-const Stat = ({ v, l, per, accent }) => (
-  <div style={{ minWidth: 84 }}>
+const Stat = ({ v, l, per, pct: share, accent }) => (
+  <div style={{ minWidth: 88 }}>
     <div style={{ ...S.statV, color: accent || INK }}>{v}</div>
     <div style={S.statL}>{l}</div>
     {per && <div style={S.statPer}>{per}</div>}
+    {share && <div style={{ ...S.statPer, color: accent || INK, fontWeight: 600 }}>
+      {share}</div>}
   </div>
 )
 
@@ -671,11 +692,10 @@ function Detail({ p, metric, view, total, onClose }) {
       </div>
 
       <p style={S.foot}>
-        Both directions are combined, because an intervention is scoped for the street
-        rather than one side of it. Delay is clipped at the source cell, so a bus
-        recovering time is not counted as negative delay. Riders are counted past an
-        average point, not summed along the length. Daily figures divide the 20-day
-        total by 20, so they average weekdays and weekends together.
+        Both directions together, since you pave a street and not a side of it. Time
+        a bus makes back does not cancel time it lost. Riders are counted past an
+        average point, not added up along the length. Daily figures are the 20-day
+        total over 20, weekends included.
       </p>
     </div>
   )

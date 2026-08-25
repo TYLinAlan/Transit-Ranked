@@ -24,7 +24,7 @@ produced no corridor at all.
 
 Corridors is the default view at the top 50. The header carries every figure for
 whatever is on screen -- riders, passenger-minutes, bus-minutes, bus trips, count and
-centreline miles -- each with its per-day rate underneath, and it tracks both layers.
+centreline miles -- each with its per-day rate underneath, and the two delay figures also carry their share of the citywide total. It tracks both layers.
 
 A **run** is a continuous stretch of one street: consecutive blocks that share a LION
 node, carry the same name and keep going in the same direction. It is the corridor
