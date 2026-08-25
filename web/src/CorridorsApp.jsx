@@ -47,6 +47,8 @@ const LINE = '#e3e1dd'
 const ORANGE = '#F26724'
 const BLUE = '#476AA3'
 const PAPER = '#ffffff'
+const UI = '"Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif'
+const FIG = '"Source Serif 4", Cambria, Georgia, serif'
 const CARTO_CREDIT =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' +
   ' contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -369,7 +371,6 @@ export default function CorridorsApp() {
     <div style={S.page}>
       <header style={S.header}>
         <div style={{ flex: '0 1 auto', minWidth: 290 }}>
-          <div style={S.eyebrow}>TRANSIT RANKED</div>
           <h1 style={S.h1}>Where bus delay lands in New York</h1>
           <p style={S.sub}>
             Twenty days of MTA real-time data, matched to the street and weighted by
@@ -403,7 +404,6 @@ export default function CorridorsApp() {
       <div style={S.body}>
         <aside style={S.panel}>
           <section style={S.block}>
-            <div style={S.label}>WHAT TO SHOW</div>
             <div style={S.viewGrid}>
               <ViewBtn on={view === 'corridors'} onClick={() => switchView('corridors')}
                        n={sets.corridors && sets.corridors.length} lab="corridors"
@@ -420,7 +420,6 @@ export default function CorridorsApp() {
           </section>
 
           <section style={{ ...S.block, borderTop: `1px solid ${LINE}` }}>
-            <div style={S.label}>COLOUR AND RANK BY</div>
             <div style={S.mGrid}>
               {METRICS.map((m) => (
                 <button key={m.id} onClick={() => setMetricId(m.id)} style={{
@@ -432,9 +431,9 @@ export default function CorridorsApp() {
                 }}>{m.label}</button>
               ))}
             </div>
-            <p style={S.blurb}>{metric.blurb}</p>
+            <p style={S.aside}>{metric.blurb}</p>
 
-            <div style={{ ...S.label, marginTop: 16 }}>BOROUGH</div>
+            <div style={{ ...S.label, marginTop: 18 }}>Borough</div>
             <div style={S.chips}>
               {allBoros.map((b) => (
                 <button key={b} onClick={() => toggleBoro(b)} style={{
@@ -446,9 +445,9 @@ export default function CorridorsApp() {
               ))}
             </div>
 
-            <div style={{ ...S.label, marginTop: 16 }}>
-              SHOW TOP <span style={{ color: INK }}>{Math.min(topN, nAll) || 0}</span>
-              {' '}OF {fmt(nAll)}
+            <div style={{ ...S.label, marginTop: 18 }}>
+              Showing <span style={{ color: INK, fontWeight: 700 }}>
+                {Math.min(topN, nAll) || 0}</span> of {fmt(nAll)}
             </div>
             <input type="range" min="10" max={nAll || 100}
                    value={Math.min(topN, nAll || 100)}
@@ -472,7 +471,7 @@ export default function CorridorsApp() {
           </section>
 
           <section style={{ ...S.block, borderTop: `1px solid ${LINE}` }}>
-            <div style={S.label}>{metric.label.toUpperCase()} ({metric.unit})</div>
+            <div style={S.label}>{metric.label}, {metric.unit}</div>
             {metric.ramp.map((c, i) => (
               <div key={i} style={S.lRow}>
                 <span style={{ ...S.lSw, background: c, height: WIDTHS[i] }} />
@@ -484,15 +483,18 @@ export default function CorridorsApp() {
                 </span>
               </div>
             ))}
-            <p style={S.blurb}>
-              Percentile classes, taken from whatever is on screen. Even intervals
-              would dump four fifths of the city into one colour.
+            <p style={S.aside}>
+              Percentile classes, taken from whatever is on screen.
             </p>
           </section>
 
           <section style={{ ...S.block, borderTop: `1px solid ${LINE}`,
                             paddingBottom: 40 }}>
-            <div style={S.label}>RANKED LIST</div>
+            <div style={S.thead}>
+              <span style={{ width: 26 }} />
+              <span style={{ flex: 1 }}>{view === 'corridors' ? 'Corridor' : 'Run'}</span>
+              <span>{metric.unit}</span>
+            </div>
             {rows.map((p, i) => {
               const on = sel && sel.fid === p.fid
               return (
@@ -519,7 +521,11 @@ export default function CorridorsApp() {
                 </button>
               )
             })}
-            {!rows.length && <p style={S.blurb}>Nothing matches that filter.</p>}
+            {!rows.length && <p style={S.aside}>Nothing matches that filter.</p>}
+            <div style={S.mark}>
+              Transit Ranked<span style={{ color: FAINT }}>
+                {'  \u00b7  '}MTA real-time, 26 June to 15 July 2026</span>
+            </div>
           </section>
         </aside>
 
@@ -549,8 +555,8 @@ function Calendar() {
   return (
     <div style={S.calWrap}>
       <div style={S.calHead}>
-        STUDY WINDOW &middot; 26 JUN &ndash; 15 JUL 2026 &middot;
-        14 WEEKDAYS, 6 WEEKEND DAYS
+        Study window &middot; 26 Jun to 15 Jul 2026 &middot;
+        14 weekdays, 6 weekend days
       </div>
       <div style={S.calRow}>
         {CALENDAR.map(([mon, day, dow], i) => {
@@ -608,7 +614,7 @@ function Detail({ p, metric, view, total, onClose }) {
       <div style={S.dHead}>
         <div>
           <div style={{ ...S.eyebrow, color: metric.accent }}>
-            RANK {p.rank} OF {fmt(total)} BY PASSENGER DELAY
+            Rank {p.rank} of {fmt(total)} by passenger delay
           </div>
           <h2 style={S.dH}>{p.name}</h2>
           <div style={S.dSub}>
@@ -640,7 +646,7 @@ function Detail({ p, metric, view, total, onClose }) {
       </div>
 
       <div style={S.dBlock}>
-        <div style={S.label}>WHEN IT HAPPENS (WEEKDAY)</div>
+        <div style={S.label}>When it happens, weekday</div>
         {PERIODS.map((q) => {
           const share = p['share_' + q.id + '_pct']
           return (
@@ -684,7 +690,7 @@ function Detail({ p, metric, view, total, onClose }) {
 
       <div style={S.dBlock}>
         <div style={S.label}>
-          {routes.length} ROUTES USE THIS {view === 'corridors' ? 'CORRIDOR' : 'RUN'}
+          {routes.length} routes use this {view === 'corridors' ? 'corridor' : 'run'}
         </div>
         <div style={S.rtWrap}>
           {routes.map((r) => <span key={r} style={S.rt}>{r}</span>)}
@@ -711,22 +717,21 @@ const Cell = ({ v, l, sub, accent, big }) => (
 
 /* ------------------------------------------------------------------ styles */
 const S = {
-  page: { fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif', color: INK,
+  page: { fontFamily: UI, color: INK,
           background: PAPER, height: '100vh', display: 'flex',
           flexDirection: 'column', overflow: 'hidden' },
   header: { padding: '13px 22px 11px', borderBottom: `1px solid ${LINE}`,
             display: 'flex', gap: 22, alignItems: 'flex-start',
             justifyContent: 'space-between', flexWrap: 'wrap' },
-  eyebrow: { fontSize: 10.5, fontWeight: 700, letterSpacing: '.12em', color: ORANGE,
-             marginBottom: 5 },
-  h1: { margin: 0, fontSize: 23, fontWeight: 700, letterSpacing: '-.01em' },
+  eyebrow: { fontSize: 11, fontWeight: 600, color: ORANGE, marginBottom: 5 },
+  h1: { fontFamily: FIG, margin: 0, fontSize: 25, fontWeight: 600,
+        letterSpacing: '-.005em' },
   sub: { margin: '6px 0 0', color: MUTED, fontSize: 12.5, maxWidth: 470,
          lineHeight: 1.45 },
 
   calWrap: { paddingTop: 3, flex: '1 1 auto', display: 'flex',
              flexDirection: 'column', alignItems: 'center' },
-  calHead: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
-             marginBottom: 7 },
+  calHead: { fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 7 },
   calRow: { display: 'flex', gap: 2 },
   calCell: { width: 26, height: 34, border: `1px solid ${LINE}`, borderRadius: 4,
              fontSize: 13, display: 'flex', flexDirection: 'column',
@@ -734,10 +739,10 @@ const S = {
              fontVariantNumeric: 'tabular-nums' },
   calDow: { fontSize: 8.5, color: FAINT, letterSpacing: '.05em', marginBottom: 1 },
 
-  scope: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
-           textTransform: 'uppercase', marginBottom: 7, textAlign: 'right' },
+  scope: { fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 7,
+           textAlign: 'right' },
   hstats: { display: 'flex', gap: 22 },
-  statV: { fontSize: 22, fontWeight: 700, lineHeight: 1.05,
+  statV: { fontFamily: FIG, fontSize: 22, fontWeight: 700, lineHeight: 1.05,
            fontVariantNumeric: 'tabular-nums' },
   statL: { fontSize: 10.5, color: MUTED, marginTop: 3 },
   statPer: { fontSize: 10, color: FAINT, marginTop: 1,
@@ -747,9 +752,15 @@ const S = {
   panel: { width: 380, minWidth: 330, borderRight: `1px solid ${LINE}`,
            overflowY: 'auto', background: '#fcfbfa' },
   block: { padding: '15px 19px' },
-  label: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em', color: MUTED,
-           marginBottom: 8 },
+  label: { fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 8 },
   blurb: { fontSize: 11.5, color: MUTED, lineHeight: 1.45, margin: '8px 0 0' },
+  aside: { fontSize: 11.5, color: MUTED, lineHeight: 1.45, margin: '9px 0 0',
+           paddingLeft: 9, borderLeft: `2px solid ${LINE}` },
+  thead: { display: 'flex', alignItems: 'baseline', gap: 9, padding: '0 7px 6px',
+           fontSize: 10.5, color: FAINT, borderBottom: `1px solid ${LINE}`,
+           marginBottom: 4 },
+  mark: { marginTop: 22, paddingTop: 12, borderTop: `1px solid ${LINE}`,
+          fontFamily: FIG, fontSize: 12, color: MUTED, letterSpacing: '.01em' },
 
   viewGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
   viewBtn: { padding: '9px 10px', border: `1.5px solid ${LINE}`, borderRadius: 7,
@@ -786,7 +797,7 @@ const S = {
   rTitle: { fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
             textOverflow: 'ellipsis' },
   rMeta: { fontSize: 10, color: MUTED },
-  rVal: { fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums' },
+  rVal: { fontFamily: FIG, fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums' },
 
   mapWrap: { flex: 1, position: 'relative', minWidth: 0 },
   map: { position: 'absolute', inset: 0 },
@@ -805,7 +816,7 @@ const S = {
            color: MUTED, cursor: 'pointer', padding: 0, height: 26 },
   dGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 11px',
            margin: '16px 0 4px' },
-  cellV: { fontWeight: 700, lineHeight: 1.12, fontVariantNumeric: 'tabular-nums' },
+  cellV: { fontFamily: FIG, fontWeight: 700, lineHeight: 1.12, fontVariantNumeric: 'tabular-nums' },
   cellL: { fontSize: 10.5, color: MUTED, marginTop: 2, lineHeight: 1.3 },
   cellSub: { fontSize: 9.5, color: FAINT, marginTop: 1 },
   dBlock: { marginTop: 18, paddingTop: 14, borderTop: `1px solid ${LINE}` },
@@ -828,5 +839,5 @@ const S = {
   foot: { fontSize: 10, color: MUTED, lineHeight: 1.45, marginTop: 18, paddingTop: 12,
           borderTop: `1px solid ${LINE}` },
 
-  err: { padding: 40, fontFamily: '"Segoe UI", system-ui, sans-serif' },
+  err: { padding: 40, fontFamily: UI },
 }
