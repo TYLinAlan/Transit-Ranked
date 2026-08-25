@@ -66,19 +66,19 @@ const CLASS_LABELS = ['lowest half', '50-75th', '75-90th', '90-97th', 'worst 3%'
 const METRICS = [
   { id: 'pax_delay_min', label: 'Passenger delay', unit: 'passenger-min',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'Minutes lost, times the people who lost them.' },
+  },
   { id: 'veh_delay_min', label: 'Bus delay', unit: 'bus-min',
     ramp: RAMP_BUS, accent: BLUE,
-    blurb: 'Minutes the bus lost. Empty or full, same weight.' },
+  },
   { id: 'riders_20d', label: 'Riders carried', unit: 'riders',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'People past an average point, over the 20 days.' },
+  },
   { id: 'min_per_bus', label: 'Minutes per bus', unit: 'min',
     ramp: RAMP_BUS, accent: BLUE,
-    blurb: 'What a bus loses end to end.' },
+  },
   { id: 'sec_per_rider', label: 'Seconds per rider', unit: 'sec',
     ramp: RAMP_PAX, accent: ORANGE,
-    blurb: 'What a rider aboard the whole way loses.' },
+  },
 ]
 
 const PERIODS = [
@@ -373,8 +373,7 @@ export default function CorridorsApp() {
         <div style={{ flex: '0 1 auto', minWidth: 290 }}>
           <h1 style={S.h1}>Where bus delay lands in New York</h1>
           <p style={S.sub}>
-            Twenty days of MTA real-time data, matched to the street and weighted by
-            how many people were on the bus.
+            Twenty days of MTA real-time data, weighted by who was on the bus.
           </p>
         </div>
 
@@ -386,7 +385,7 @@ export default function CorridorsApp() {
           <div style={S.hstats}>
             <Stat v={compact(totals.riders)} l="riders carried"
                   per={`${compact(totals.riders / DAYS)} per day`} accent={ORANGE} />
-            <Stat v={compact(totals.pax)} l="passenger-min lost"
+            <Stat lead v={compact(totals.pax)} l="passenger-min lost"
                   per={`${compact(totals.pax / DAYS)} per day`}
                   pct={city && `${pct(totals.pax, city.pax)} of citywide`} />
             <Stat v={compact(totals.bus)} l="bus-min lost"
@@ -414,8 +413,8 @@ export default function CorridorsApp() {
             </div>
             <p style={S.blurb}>
               {view === 'corridors'
-                ? 'Bad blocks, chained where they touch. 300 corridors over 194 miles hold 47% of the delay on 13% of the streets. The cut is a percentile within each borough, so Staten Island is judged against Staten Island.'
-                : 'Every bus street in the city, cut where the street breaks. 3,628 stretches, 1,491 miles, nothing filtered out. Broadway in Manhattan is 18 runs here, not one row with an average on it.'}
+                ? '194 miles. Just under half the city\u2019s delay, on an eighth of its bus streets.'
+                : '1,491 miles. Every bus street in New York, nothing filtered out.'}
             </p>
           </section>
 
@@ -431,7 +430,6 @@ export default function CorridorsApp() {
                 }}>{m.label}</button>
               ))}
             </div>
-            <p style={S.aside}>{metric.blurb}</p>
 
             <div style={{ ...S.label, marginTop: 18 }}>Borough</div>
             <div style={S.chips}>
@@ -483,9 +481,7 @@ export default function CorridorsApp() {
                 </span>
               </div>
             ))}
-            <p style={S.aside}>
-              Percentile classes, taken from whatever is on screen.
-            </p>
+
           </section>
 
           <section style={{ ...S.block, borderTop: `1px solid ${LINE}`,
@@ -522,6 +518,26 @@ export default function CorridorsApp() {
               )
             })}
             {!rows.length && <p style={S.aside}>Nothing matches that filter.</p>}
+            <details style={S.method}>
+              <summary style={S.methodHead}>Method</summary>
+              <p style={S.methodBody}>
+                Delay is the gap between the scheduled arrival and the last arrival the
+                feed published for that stop, differenced along the trip so it lands on
+                the block that caused it. Passenger delay multiplies each minute by the
+                number of people aboard, from stop-level counts.
+              </p>
+              <p style={S.methodBody}>
+                Corridors are contiguous blocks above a percentile taken within each
+                borough, so Staten Island is judged against Staten Island. Runs are the
+                same chaining with no threshold, which is why Broadway in Manhattan is
+                18 of them rather than one row with an average on it.
+              </p>
+              <p style={S.methodBody}>
+                Colour classes are percentiles of whatever is on screen. Time a bus
+                makes back does not cancel time it lost. Daily figures divide the
+                20-day total by 20, weekends included.
+              </p>
+            </details>
             <div style={S.mark}>
               Transit Ranked<span style={{ color: FAINT }}>
                 {'  \u00b7  '}MTA real-time, 26 June to 15 July 2026</span>
@@ -584,9 +600,10 @@ function Calendar() {
   )
 }
 
-const Stat = ({ v, l, per, pct: share, accent }) => (
-  <div style={{ minWidth: 88 }}>
-    <div style={{ ...S.statV, color: accent || INK }}>{v}</div>
+const Stat = ({ v, l, per, pct: share, accent, lead }) => (
+  <div style={{ minWidth: lead ? 104 : 84 }}>
+    <div style={{ ...S.statV, color: accent || INK,
+                  fontSize: lead ? 30 : 20 }}>{v}</div>
     <div style={S.statL}>{l}</div>
     {per && <div style={S.statPer}>{per}</div>}
     {share && <div style={{ ...S.statPer, color: accent || INK, fontWeight: 600 }}>
@@ -698,10 +715,8 @@ function Detail({ p, metric, view, total, onClose }) {
       </div>
 
       <p style={S.foot}>
-        Both directions together, since you pave a street and not a side of it. Time
-        a bus makes back does not cancel time it lost. Riders are counted past an
-        average point, not added up along the length. Daily figures are the 20-day
-        total over 20, weekends included.
+        Both directions together. Riders counted past an average point, not added up
+        along the length.
       </p>
     </div>
   )
@@ -759,7 +774,10 @@ const S = {
   thead: { display: 'flex', alignItems: 'baseline', gap: 9, padding: '0 7px 6px',
            fontSize: 10.5, color: FAINT, borderBottom: `1px solid ${LINE}`,
            marginBottom: 4 },
-  mark: { marginTop: 22, paddingTop: 12, borderTop: `1px solid ${LINE}`,
+  method: { marginTop: 22, paddingTop: 12, borderTop: `1px solid ${LINE}` },
+  methodHead: { fontSize: 11.5, fontWeight: 600, color: MUTED, cursor: 'pointer' },
+  methodBody: { fontSize: 11, color: FAINT, lineHeight: 1.5, margin: '9px 0 0' },
+  mark: { marginTop: 16, paddingTop: 12, borderTop: `1px solid ${LINE}`,
           fontFamily: FIG, fontSize: 12, color: MUTED, letterSpacing: '.01em' },
 
   viewGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 },
