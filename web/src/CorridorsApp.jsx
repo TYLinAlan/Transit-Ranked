@@ -52,6 +52,7 @@ const FIG = '"Source Serif 4", Cambria, Georgia, serif'
 const CARTO_CREDIT =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' +
   ' contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+const CARTO_KEY = import.meta.env.VITE_CARTO_API_KEY
 
 /* Single-hue ramps, magnitude by lightness. Every step is solved to a fixed contrast
  * ratio against the basemap land colour (1.95 / 2.72 / 3.80 / 5.30 / 7.40) with an
@@ -216,13 +217,13 @@ export default function CorridorsApp() {
           ground: {
             type: 'raster', tileSize: 256,
             tiles: ['a', 'b', 'c', 'd'].map((h) =>
-              `https://${h}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png`),
+              `https://${h}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`),
             attribution: CARTO_CREDIT,
           },
           places: {
             type: 'raster', tileSize: 256,
             tiles: ['a', 'b', 'c', 'd'].map((h) =>
-              `https://${h}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png`),
+              `https://${h}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png?key=${CARTO_KEY}`),
           },
         },
         layers: [{ id: 'ground', type: 'raster', source: 'ground' }],
